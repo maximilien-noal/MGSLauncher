@@ -3,10 +3,17 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:MGSLauncher"
-        mc:Ignorable="d"
-        Title="MainWindow" Height="350" Width="525">
-    <Grid>
-        
+        mc:Ignorable="d" WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+        Name="RootWindow" Height="478" Width="638">
+    <Grid DataContext="{Binding ElementName=RootWindow}">
+        <Grid.Background>
+            <ImageBrush ImageSource="Background.png" />
+        </Grid.Background>
+        <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,41,40" TextBlock.FontFamily="Sans">
+            <Button Name="PlayButton" Command="{Binding Play}" Content="Metal Gear Solid" Foreground="White" Width="113" Height="18" Background="Transparent" BorderBrush="Transparent" Margin="0,0,0,47">
+            </Button>
+            <Button Name="VRButton" Command="{Binding PlayVR}" Content="Missions VR" Foreground="White" Width="113" Height="18" Background="Transparent" BorderBrush="Transparent" Margin="0,0,0,45" />
+            <Button Name="QuitButton" Command="{Binding Quit}" Content="Quitter" Foreground="White" Width="113" Height="18" Background="Transparent" BorderBrush="Transparent" />
+        </StackPanel>
     </Grid>
 </Window>
