@@ -39,7 +39,7 @@ static BOOL g_bContinue=TRUE, g_bUserInterruptedPlayback=FALSE;
 static HRESULT PlayMedia(LPTSTR lpszMovie, HINSTANCE hInstance);
 static HRESULT GetInterfaces(void);
 static HRESULT SetFullscreen(void);
-static void CloseApp();
+static void StopPlayback();
 static void CleanupInterfaces(void);
 static void Msg(TCHAR *szFormat, ...);
 static BOOL CreateHiddenWindow( HINSTANCE hInstance, TCHAR *szFile );
@@ -145,13 +145,12 @@ LONG WINAPI WindowProc( HWND hWnd, UINT message,
                 case VK_SPACE:
                 case VK_RETURN:
                     g_bUserInterruptedPlayback = TRUE;
-                    CloseApp();
+                    StopPlayback();
                     break;
             }
             break;
 
         case WM_DESTROY:
-            PostQuitMessage(0);
             return 0;
     }
 
@@ -199,14 +198,13 @@ void CleanupInterfaces(void)
 }
 
 
-void CloseApp()
+void StopPlayback()
 {
-    // Stop playback and exit
+    // Stop playback
     if (pMC)
         pMC->Stop();
 
     g_bContinue = FALSE;
-    PostMessage(g_hwndMain, WM_CLOSE, 0, 0);
 }
 
 
