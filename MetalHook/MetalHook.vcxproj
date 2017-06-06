@@ -142,6 +142,7 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Injector.h" />
     <ClInclude Include="MetalHook.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="stdafx.h" />

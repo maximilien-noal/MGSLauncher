@@ -4,6 +4,7 @@
 #include "stdafx.h"
 #include "MetalHook.h"
 #include <windows.h>
+#include "Injector.h"
 
 #define MAX_LOADSTRING 100
 
@@ -27,6 +28,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(lpCmdLine);
 
 	//TODO : add code here
+	LaunchInjection();
 
     // Initialize global strings
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
