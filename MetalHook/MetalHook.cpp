@@ -4,7 +4,6 @@
 #include "stdafx.h"
 #include "MetalHook.h"
 #include <windows.h>
-#include "cutscene.h"
 
 #define MAX_LOADSTRING 100
 
@@ -27,6 +26,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
+	//TODO : add code here
+
     // Initialize global strings
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_METALHOOK, szWindowClass, MAX_LOADSTRING);
@@ -45,8 +46,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Main message loop:
     while (GetMessage(&msg, nullptr, 0, 0))
     {
-		PlayCutscene(L"C:\\Jeux\\MGS\\movie\\e399.wmv", hInst);
-
         if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
         {
             TranslateMessage(&msg);

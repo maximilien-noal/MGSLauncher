@@ -30,9 +30,6 @@
     <ClInclude Include="MetalHook.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="cutscene.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -41,7 +38,7 @@
     <ClCompile Include="MetalHook.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="cutscene.cpp">
+    <ClCompile Include="Injector.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -8,7 +8,6 @@
 #include <iostream>
 #include <Windows.h>
 
-// This is an example of an exported variable
 DWORD gFreqOffset = 0;
 
 BOOL WINAPI myBeepHook(DWORD dwFreq, DWORD dwDuration)
@@ -23,7 +22,7 @@ extern "C" void __declspec(dllexport) __stdcall NativeInjectionEntryPoint(REMOTE
 
 void __stdcall NativeInjectionEntryPoint(REMOTE_ENTRY_INFO* inRemoteInfo)
 {
-	std::cout << "\n\nNativeInjectionEntryPointt(REMOTE_ENTRY_INFO* inRemoteInfo)\n\n" <<
+	std::cout << "\n\nNativeInjectionEntryPoint(REMOTE_ENTRY_INFO* inRemoteInfo)\n\n" <<
 		"IIIII           jjj               tt                dd !!! \n"
 		" III  nn nnn          eee    cccc tt      eee       dd !!! \n"
 		" III  nnn  nn   jjj ee   e cc     tttt  ee   e  dddddd !!! \n"
