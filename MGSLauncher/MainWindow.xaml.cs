@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -31,12 +33,11 @@ namespace MGSLauncher
         {
             try
             {
-                System.Diagnostics.Process.Start(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "MGSVR.EXE"));
-                Application.Current.Shutdown();
+                HookLauncher.Run("MGSVR.EXE");
             }
             catch(Exception e)
             {
-                MessageBox.Show(e.Message);
+                Debug.WriteLine(e.Message);
             }
 
         }
@@ -45,12 +46,11 @@ namespace MGSLauncher
         {
             try
             {
-                System.Diagnostics.Process.Start(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "MGSI.EXE"));
-                Application.Current.Shutdown();
+                HookLauncher.Run("MGSI.EXE");
             }
             catch(Exception e)
             {
-                MessageBox.Show(e.Message);
+                Debug.WriteLine(e.Message);
             }
 
         }
