@@ -44,13 +44,13 @@ static BOOL g_bContinue = TRUE, g_bUserInterruptedPlayback = FALSE;
 //
 // Function prototypes
 //
-static HRESULT PlayMedia(LPTSTR lpszMovie, HINSTANCE hInstance);
+static HRESULT PlayMedia(LPTSTR lpszMovie, HINSTANCE processHandle, HWND gameWindow);
 static HRESULT GetInterfaces(void);
 static HRESULT SetFullscreen(void);
 static void StopPlayback();
 static void CleanupInterfaces(void);
 static void Msg(TCHAR *szFormat, ...);
-static BOOL CreateHiddenWindow(HINSTANCE hInstance, TCHAR *szFile);
+static BOOL CreateHiddenWindow(HINSTANCE processHandle, TCHAR *szFile);
 static LONG WINAPI WindowProc(HWND, UINT, WPARAM, LPARAM);
 
 
@@ -67,7 +67,7 @@ static LONG WINAPI WindowProc(HWND, UINT, WPARAM, LPARAM);
 
 
 
-HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE hInstance)
+HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND gameWindow)
 {
 	HRESULT hr;
 
@@ -75,7 +75,7 @@ HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE hInstance)
 		return E_POINTER;
 
 	// Create the main hidden window to field keyboard input
-	if (!CreateHiddenWindow(hInstance, szMovie))
+	if (!CreateHiddenWindow(processHandle, szMovie))
 		return E_FAIL;
 
 	// Initialize COM
@@ -90,7 +90,7 @@ HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE hInstance)
 	}
 
 	// Play the movie / cutscene
-	hr = PlayMedia(szMovie, hInstance);
+	hr = PlayMedia(szMovie, processHandle, gameWindow);
 
 	// If the user interrupted playback and there was no other error,
 	// return S_FALSE.
@@ -180,6 +180,7 @@ HRESULT GetInterfaces(void)
 
 	// Get interfaces to control playback & screensize
 	JIF(pGB->QueryInterface(IID_IMediaControl, (void **)&pMC));
+
 	JIF(pGB->QueryInterface(IID_IVideoWindow, (void **)&pVW));
 
 	// Get interface to allow the app to wait for completion of playback
@@ -216,7 +217,7 @@ void StopPlayback()
 }
 
 
-HRESULT PlayMedia(LPTSTR lpszMovie, HINSTANCE hInstance)
+HRESULT PlayMedia(LPTSTR lpszMovie, HINSTANCE hInstance, HWND gameWindow)
 {
 	HRESULT hr = S_OK;
 	BOOL bSleep = TRUE;
@@ -230,6 +231,12 @@ HRESULT PlayMedia(LPTSTR lpszMovie, HINSTANCE hInstance)
 		Msg(TEXT("Failed(0x%08lx) in RenderFile(%s)!\r\n"), hr, lpszMovie);
 		return hr;
 	}
+
+	JIF(pVW->put_Owner((OAHWND)gameWindow));
+	JIF(pVW->put_WindowStyle(WS_CHILD | WS_CLIPSIBLINGS));
+	RECT grc;
+	GetClientRect(gameWindow, &grc);
+	JIF(pVW->SetWindowPosition(0, 0, grc.right, grc.bottom));
 
 	// Set the message drain of the video window to point to our hidden
 	// application window.  This allows keyboard input to be transferred
@@ -306,6 +313,11 @@ HRESULT PlayMedia(LPTSTR lpszMovie, HINSTANCE hInstance)
 	}
 
 	return hr;
+
+// In case of failure, the helper macro jumps here
+CLEANUP:
+	CleanupInterfaces();
+	return(hr);
 }
 
 

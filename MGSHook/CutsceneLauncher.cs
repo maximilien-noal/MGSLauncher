@@ -12,6 +12,18 @@ namespace MGSHook
 {
     public class CutsceneLauncher : IEntryPoint
     {
+        private static IntPtr cutsceneDllPointer;
+
+        static CutsceneLauncher()
+        {
+            string pathToCutsceneDll = Path.Combine(_runningDirectory, "Cutscene.dll");
+            //Avoid "FileNotFoundException" when the Win32 loader tries to load cutscene.dll
+            if (File.Exists(pathToCutsceneDll))
+            {
+                cutsceneDllPointer = NativeMethods.LoadLibrary(pathToCutsceneDll);
+            }
+        }
+
         private static string _runningDirectory = Environment.CurrentDirectory;
         IpcInterface _ipcInterface;
 
@@ -60,17 +72,12 @@ namespace MGSHook
                     if(lastvid != wmvfilename)
                     {
                         lastvid = wmvfilename;
-                        PlayVideo(wmvfilename, GetActiveWindow());
+                        //File.WriteAllText(@"C:\Jeux\mgsvr.log", String.Format("HINSTANCE : {0}  HWND : {1} Title : {2}", Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle, Process.GetCurrentProcess().MainWindowTitle));
+                        PlayVideo(wmvfilename, Process.GetCurrentProcess().Handle, NativeMethods.GetActiveWindow());
                     }
                 }
             }
         }
-
-        [DllImport("user32.dll")]
-        private static extern IntPtr GetForegroundWindow();
-
-        [DllImport("user32.dll")]
-        private static extern IntPtr GetActiveWindow();
 
         [UnmanagedFunctionPointer(CallingConvention.StdCall, SetLastError = true, CharSet = CharSet.Ansi)]
         public delegate IntPtr CreateFileDelegate(
@@ -95,7 +102,7 @@ namespace MGSHook
         #endregion CreateFile
 
         [DllImport("Cutscene.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        private static extern long PlayVideo([MarshalAs(UnmanagedType.LPTStr)] string filename, IntPtr windowHandle);
+        private static extern long PlayVideo([MarshalAs(UnmanagedType.LPTStr)] string filename, IntPtr processHandle, IntPtr gameWindow);
 
         public CutsceneLauncher(RemoteHooking.IContext inContext, String inChannelName)
         {
@@ -123,7 +130,10 @@ namespace MGSHook
             catch (Exception exception)
             {
                 _ipcInterface.ReportException(exception);
-
+                if(cutsceneDllPointer != null)
+                {
+                    NativeMethods.FreeLibrary(cutsceneDllPointer);
+                }
                 return;
             }
 

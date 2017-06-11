@@ -38,6 +38,7 @@
     <Reference Include="EasyHook, Version=2.7.6270.0, Culture=neutral, PublicKeyToken=4b580fca19d0b0c5, processorArchitecture=MSIL">
       <HintPath>..\packages\EasyHook.2.7.6270\lib\net40\EasyHook.dll</HintPath>
     </Reference>
+    <Reference Include="PresentationFramework" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Runtime.Remoting" />
@@ -49,6 +50,7 @@
   <ItemGroup>
     <Compile Include="CutsceneLauncher.cs" />
     <Compile Include="IpcInterface.cs" />
+    <Compile Include="NativeMethods.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>

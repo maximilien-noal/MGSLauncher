@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Windows;
 
 namespace MGSHook
 {
@@ -20,7 +21,7 @@ namespace MGSHook
 
         public void ReportException(Exception inInfo)
         {
-            Debug.WriteLine("The target process has reported an error:\r\n" + inInfo.ToString());
+            MessageBox.Show("The target process has reported an error:\r\n" + inInfo.ToString());
         }
 
         public void Ping()
