@@ -2,7 +2,9 @@
 //
 #include <dshow.h>
 #include <strsafe.h>
+#include <vmr9.h>
 
+#include "smartptr.h"
 #include "stdafx.h"
 #include "Cutscene.h"
 
@@ -32,9 +34,11 @@
 //
 // Globals
 //
+static HWND      ghApp = 0;
 static IGraphBuilder  *pGB = NULL;
 static IMediaControl  *pMC = NULL;
-static IVideoWindow   *pVW = NULL;
+// VMR9 interfaces
+IVMRWindowlessControl9 *pVW = NULL;
 static IMediaEvent    *pME = NULL;
 
 static HWND g_hwndMain = 0;
@@ -61,6 +65,9 @@ static LONG WINAPI WindowProc(HWND, UINT, WPARAM, LPARAM);
 
 #define JIF(x) if (FAILED(hr=(x))) \
     {Msg(TEXT("FAILED(hr=0x%x) in ") TEXT(#x) TEXT("\n\0"), hr); goto CLEANUP;}
+
+#define MIF(x) if (FAILED(hr=(x))) \
+    {Msg(TEXT("FAILED(hr=0x%x) in ") TEXT(#x) TEXT("\n\0"), hr);}
 
 #define LIF(x) if (FAILED(hr=(x))) \
     {Msg(TEXT("FAILED(hr=0x%x) in ") TEXT(#x) TEXT("\n\0"), hr); return hr;}
@@ -163,9 +170,10 @@ LONG WINAPI WindowProc(HWND hWnd, UINT message,
 	}
 
 	// Pass this message to the video window for notification of system changes
+	/*
 	if (pVW)
 		pVW->NotifyOwnerMessage((LONG_PTR)hWnd, message, wParam, lParam);
-
+	*/
 	return (LONG)DefWindowProc(hWnd, message, wParam, lParam);
 }
 
@@ -175,7 +183,7 @@ HRESULT GetInterfaces(void)
 	HRESULT hr = S_OK;
 
 	// Instantiate filter graph interface
-	JIF(CoCreateInstance(CLSID_FilterGraph, NULL, CLSCTX_INPROC,
+	JIF(CoCreateInstance(CLSID_FilterGraph, NULL, CLSCTX_INPROC_SERVER,
 		IID_IGraphBuilder, (void **)&pGB));
 
 	// Get interfaces to control playback & screensize
@@ -232,19 +240,20 @@ HRESULT PlayMedia(LPTSTR lpszMovie, HINSTANCE hInstance, HWND gameWindow)
 		return hr;
 	}
 
+	/*
 	JIF(pVW->put_Owner((OAHWND)gameWindow));
 	JIF(pVW->put_WindowStyle(WS_CHILD | WS_CLIPSIBLINGS));
 	RECT grc;
 	GetClientRect(gameWindow, &grc);
 	JIF(pVW->SetWindowPosition(0, 0, grc.right, grc.bottom));
-
+	*/
 	// Set the message drain of the video window to point to our hidden
 	// application window.  This allows keyboard input to be transferred
 	// to our main window for processing.
 	//
 	// If this is an audio-only or MIDI file, then put_MessageDrain will fail.
 	//
-	hr = pVW->put_MessageDrain((OAHWND)g_hwndMain);
+	//hr = pVW->put_MessageDrain((OAHWND)g_hwndMain);
 	if (FAILED(hr))
 	{
 		Msg(TEXT("Failed(0x%08lx) to set message drain for %s.\r\n\r\n")
@@ -320,7 +329,45 @@ CLEANUP:
 	return(hr);
 }
 
+HRESULT InitializeWindowlessVMR(IBaseFilter **ppVmr9)
+{
+	IBaseFilter* pVmr = NULL;
 
+	if (!ppVmr9)
+		return E_POINTER;
+	*ppVmr9 = NULL;
+
+	// Create the VMR and add it to the filter graph.
+	HRESULT hr = CoCreateInstance(CLSID_VideoMixingRenderer9, NULL,
+		CLSCTX_INPROC, IID_IBaseFilter, (void**)&pVmr);
+	if (SUCCEEDED(hr))
+	{
+		hr = pGB->AddFilter(pVmr, L"Video Mixing Renderer 9");
+		if (SUCCEEDED(hr))
+		{
+			// Set the rendering mode and number of streams
+			SmartPtr <IVMRFilterConfig9> pConfig;
+
+			MIF(pVmr->QueryInterface(IID_IVMRFilterConfig9, (void**)&pConfig));
+			MIF(pConfig->SetRenderingMode(VMR9Mode_Windowless));
+
+			hr = pVmr->QueryInterface(IID_IVMRWindowlessControl9, (void**)&pVW);
+			if (SUCCEEDED(hr))
+			{
+				MIF(pVW->SetVideoClippingWindow(ghApp));
+				MIF(pVW->SetBorderColor(RGB(0, 0, 0)));
+			}
+		}
+
+		// Don't release the pVmr interface because we are copying it into
+		// the caller's ppVmr9 pointer
+		*ppVmr9 = pVmr;
+	}
+
+	return hr;
+}
+
+/*
 HRESULT SetFullscreen(void)
 {
 	HRESULT hr = S_OK;
@@ -333,7 +380,7 @@ HRESULT SetFullscreen(void)
 	// Read current state
 	LIF(pVW->get_FullScreenMode(&lMode));
 
-	if (lMode == 0)  /* OAFALSE */
+	if (lMode == 0)  // OAFALSE
 	{
 		// Save current message drain
 		LIF(pVW->get_MessageDrain((OAHWND *)&hDrain));
@@ -342,13 +389,13 @@ HRESULT SetFullscreen(void)
 		LIF(pVW->put_MessageDrain((OAHWND)g_hwndMain));
 
 		// Switch to full-screen mode
-		lMode = -1;  /* OATRUE */
+		lMode = -1;  // OATRUE
 		LIF(pVW->put_FullScreenMode(lMode));
 	}
 
 	return hr;
 }
-
+*/
 
 void Msg(TCHAR *szFormat, ...)
 {
