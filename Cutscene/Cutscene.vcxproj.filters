@@ -30,6 +30,12 @@
     <ClInclude Include="smartptr.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="common\dshowutil.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="windowless.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
