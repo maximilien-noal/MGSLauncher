@@ -149,8 +149,6 @@ static LRESULT CALLBACK CutsceneWndProc(UINT message, WPARAM wParam, LPARAM lPar
 	return CallWindowProc((WNDPROC)GetWindowLongPtr(gameWindow, GWLP_WNDPROC), gameWindow, message, wParam, lParam);
 }
 
-
-
 void ErrorExit(LPTSTR lpszFunction)
 {
 	// Retrieve the system error message for the last-error code
