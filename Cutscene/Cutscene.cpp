@@ -234,9 +234,6 @@ HRESULT PlayMedia(LPTSTR lpszMovie, HINSTANCE hInstance, HWND gameWindow)
 
 	JIF(pVW->put_Owner((OAHWND)gameWindow));
 	JIF(pVW->put_WindowStyle(WS_CHILD | WS_CLIPSIBLINGS));
-	RECT grc;
-	GetClientRect(gameWindow, &grc);
-	JIF(pVW->SetWindowPosition(0, 0, grc.right, grc.bottom));
 
 	// Set the message drain of the video window to point to our hidden
 	// application window.  This allows keyboard input to be transferred
@@ -253,7 +250,6 @@ HRESULT PlayMedia(LPTSTR lpszMovie, HINSTANCE hInstance, HWND gameWindow)
 		return hr;
 	}
 
-	// Set fullscreen
 	hr = SetFullscreen();
 	if (FAILED(hr)) {
 		Msg(TEXT("Failed(%08lx) to set fullscreen!\r\n"), hr);
@@ -333,7 +329,7 @@ HRESULT SetFullscreen(void)
 	// Read current state
 	LIF(pVW->get_FullScreenMode(&lMode));
 
-	if (lMode == 0)  /* OAFALSE */
+	if (lMode == OAFALSE)
 	{
 		// Save current message drain
 		LIF(pVW->get_MessageDrain((OAHWND *)&hDrain));
@@ -342,7 +338,7 @@ HRESULT SetFullscreen(void)
 		LIF(pVW->put_MessageDrain((OAHWND)g_hwndMain));
 
 		// Switch to full-screen mode
-		lMode = -1;  /* OATRUE */
+		lMode = OATRUE;
 		LIF(pVW->put_FullScreenMode(lMode));
 	}
 
