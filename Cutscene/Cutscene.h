@@ -10,4 +10,6 @@
 #define CUTSCENE_API extern "C" __declspec(dllimport)
 #endif
 
+#include <windows.h>
+
 CUTSCENE_API HRESULT PlayVideo(LPTSTR lpszMovie, HINSTANCE processHandle, HWND gameWindow);

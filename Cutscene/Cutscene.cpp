@@ -1,146 +1,127 @@
 // Cutscene.cpp : Defines the exported functions for the DLL application.
 //
-#include <Windows.h>
-#include <dshow.h>
-#include <strsafe.h>
-#include <vmr9.h>
-
 #include "stdafx.h"
 #include "Cutscene.h"
+#include "DShowPlayer.h"
 
-#include <dshow.h>
-#include <d3d9.h>
-#include <vmr9.h>
+const UINT WM_GRAPH_EVENT = WM_APP + 1;
+const UINT WM_GRAPHNOTIFY = WM_USER + 13;
 
-#include "smartptr.h"
-#include "common\dshowutil.h"
-#include "windowless.h"
-
-//
-// Constants
-//
-#define KEYBOARD_SAMPLE_FREQ  100  // Sample user input on an interval
-
-IGraphBuilder	*pGB = NULL;
-IMediaControl	*pMC = NULL;
-IMediaEventEx	*pME = NULL;
-IBasicAudio		*pBA = NULL;
-RECT			g_rcDest = { 0 };
-
-// VMR9 interfaces
-IVMRWindowlessControl9 *pWC = NULL;
-
-DWORD		g_dwGraphRegister = 0;
-HWND		gameWindow = 0;
-PLAYSTATE	g_psCurrent = Stopped;
-BOOL		hookedWndProc = false;
+HWND			gameWindow = 0;
+BOOL			hookedWndProc = false;
+DShowPlayer		*m_pPlayer = NULL;
+void(*graphEventfunctionPtr)(long, LONG_PTR, LONG_PTR);
 
 //
 // Function prototypes
 //
 void Msg(TCHAR *szFormat, ...);
-void CloseInterfaces(void);
-void CloseClip(void);
-HRESULT InitializeWindowlessVMR(IBaseFilter **ppVmr9);
 
 //
 // Helper Macros (Jump-If-Failed, Log-If-Failed)
 //
 
-#define JIF(x) if (FAILED(hr=(x))) \
+#define MIF(x) if (FAILED(hr=(x))) \
     {Msg(TEXT("FAILED(hr=0x%x) in ") TEXT(#x) TEXT("\n\0"), hr); goto CLEANUP;}
 
-#define MIF(x) if (FAILED(hr=(x))) \
-    {Msg(TEXT("FAILED(hr=0x%x) in ") TEXT(#x) TEXT("\n\0"), hr);}
-
-#define LIF(x) if (FAILED(hr=(x))) \
-    {Msg(TEXT("FAILED(hr=0x%x) in ") TEXT(#x) TEXT("\n\0"), hr); return hr;}
-
-void OnPaint(HWND hwnd)
+HMODULE GetCurrentModuleHandle()
 {
-	HRESULT hr;
+	HMODULE hMod = NULL;
+	GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+		reinterpret_cast<LPCWSTR>(&GetCurrentModuleHandle), &hMod);
+	return hMod;
+}
+
+void OnSize()
+{
+	if (m_pPlayer->State() != STATE_CLOSED && m_pPlayer->HasVideo())
+	{
+		RECT rcWindow;
+		// Find the client area of the application.
+		GetClientRect(gameWindow, &rcWindow);
+		//Notify the player.
+		m_pPlayer->UpdateVideoWindow(&rcWindow);
+	}
+}
+
+void OnPaint()
+{
 	PAINTSTRUCT ps;
-	HDC         hdc;
-	RECT        rcClient;
+	HDC hdc;
 
-	GetClientRect(hwnd, &rcClient);
-	hdc = BeginPaint(hwnd, &ps);
+	hdc = BeginPaint(gameWindow, &ps);
 
-	if (pWC)
+	if (m_pPlayer->State() != STATE_CLOSED && m_pPlayer->HasVideo())
 	{
-		// When using VMR Windowless mode, you must explicitly tell the
-		// renderer when to repaint the video in response to WM_PAINT
-		// messages.  This is most important when the video is stopped
-		// or paused, since the VMR won't be automatically updating the
-		// window as the video plays.
-		hr = pWC->RepaintVideo(hwnd, hdc);
+		// The player has video, so ask the player to repaint. 
+		m_pPlayer->Repaint(hdc);
 	}
-	else  // No video image. Just paint the whole client area.
-	{
-		FillRect(hdc, &rcClient, (HBRUSH)(COLOR_BTNFACE + 1));
-	}
-
-	EndPaint(hwnd, &ps);
+	
+	EndPaint(gameWindow, &ps);
 }
 
-void MoveVideoWindow(void)
+void OnStop()
 {
-	HRESULT hr;
+	HRESULT hr = m_pPlayer->Stop();
 
-	// Track the movement of the container window and resize as needed
-	if (pWC)
+	// Seek back to the start. 
+	if (SUCCEEDED(hr))
 	{
-		GetClientRect(gameWindow, &g_rcDest);
-		hr = pWC->SetVideoPosition(NULL, &g_rcDest);
+		if (m_pPlayer->CanSeek())
+		{
+			hr = m_pPlayer->SetPosition(0);
+		}
 	}
+
+	//Destroy player
+	m_pPlayer->~DShowPlayer();
 }
 
-HRESULT HandleGraphEvent(void)
+static void OnGraphEvent(long eventCode, LONG_PTR param1, LONG_PTR param2)
 {
-	LONG evCode;
-	LONG_PTR evParam1, evParam2;
-	HRESULT hr = S_OK;
-
-	// Make sure that we don't access the media event interface
-	// after it has already been released.
-	if (!pME)
-		return S_OK;
-
-	// Process all queued events
-	while (SUCCEEDED(pME->GetEvent(&evCode, &evParam1, &evParam2, 0)))
+	switch (eventCode)
 	{
-		// Free memory associated with callback, since we're not using it
-		hr = pME->FreeEventParams(evCode, evParam1, evParam2);
+	case EC_COMPLETE:
+		OnStop();
+		break;
 	}
-
-	return hr;
 }
 
 static LRESULT CALLBACK CutsceneWndProc(UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
 	{
+		case WM_SIZE:
+			OnSize();
+			break;
+
 		case WM_PAINT:
-			OnPaint(gameWindow);
+			OnPaint();
+			break;
+
+		case WM_MOVE:
+			OnPaint();
 			break;
 
 		case WM_DISPLAYCHANGE:
-			if (pWC)
-				pWC->DisplayModeChanged();
+			m_pPlayer->DisplayModeChanged();
 			break;
 
-		// Resize the video when the window changes
-		case WM_MOVE:
-		case WM_SIZE:
-			MoveVideoWindow();
-			break;
+		case WM_ERASEBKGND:
+			return 1;
 
 		case WM_KEYDOWN:
-			CloseClip();
+			OnStop();
 			break;
 
 		case WM_GRAPHNOTIFY:
-			HandleGraphEvent();
+			graphEventfunctionPtr = &OnGraphEvent;
+			m_pPlayer->HandleGraphEvent(graphEventfunctionPtr);
+			break;
+
+		case WM_GRAPH_EVENT:
+			graphEventfunctionPtr = &OnGraphEvent;
+			m_pPlayer->HandleGraphEvent(graphEventfunctionPtr);
 			break;
 		default:
 			return CallWindowProc((WNDPROC)GetWindowLongPtr(gameWindow, GWLP_WNDPROC), gameWindow, message, wParam, lParam);
@@ -182,14 +163,6 @@ void ErrorExit(LPTSTR lpszFunction)
 	ExitProcess(dw);
 }
 
-HMODULE GetCurrentModuleHandle()
-{
-	HMODULE hMod = NULL;
-	GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-		reinterpret_cast<LPCWSTR>(&GetCurrentModuleHandle), &hMod);
-	return hMod;
-}
-
 
 HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND gameWindow)
 {
@@ -206,139 +179,18 @@ HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND gameWindow)
 		hookedWndProc = true;
 	}
 
-	// Get the interface for DirectShow's GraphBuilder
-	JIF(CoCreateInstance(CLSID_FilterGraph, NULL, CLSCTX_INPROC_SERVER,
-		IID_IGraphBuilder, (void **)&pGB));
-	
-	if (SUCCEEDED(hr))
-	{
-		SmartPtr <IBaseFilter> pVmr;
+	m_pPlayer = new DShowPlayer(gameWindow);
 
-		// Create the Video Mixing Renderer and add it to the graph
-		JIF(InitializeWindowlessVMR(&pVmr));
+	MIF(m_pPlayer->SetEventWindow(gameWindow, WM_GRAPH_EVENT));
 
-		// Render the file programmatically to use the VMR9 as renderer.
-		// Pass TRUE to create an audio renderer also.
-		if (FAILED(hr = RenderFileToVideoRenderer(pGB, szMovie, TRUE)))
-			return hr;
+	MIF(m_pPlayer->OpenFile(szMovie));
 
-		// QueryInterface for DirectShow interfaces
-		JIF(pGB->QueryInterface(IID_IMediaControl, (void **)&pMC));
-		JIF(pGB->QueryInterface(IID_IMediaEventEx, (void **)&pME));
-		JIF(pGB->QueryInterface(IID_IBasicAudio, (void **)&pBA));
-
-		// Have the graph signal event via window callbacks for performance
-		JIF(pME->SetNotifyWindow((OAHWND)gameWindow, WM_GRAPHNOTIFY, 0));
-
-		// Complete initialization
-		ShowWindow(gameWindow, SW_SHOWNORMAL);
-		UpdateWindow(gameWindow);
-		SetForegroundWindow(gameWindow);
-		SetFocus(gameWindow);
-
-		hr = AddGraphToRot(pGB, &g_dwGraphRegister);
-		if (FAILED(hr))
-		{
-			Msg(TEXT("Failed to register filter graph with ROT!  hr=0x%x"), hr);
-			g_dwGraphRegister = 0;
-		}
-
-		// Run the graph to play the media file
-		JIF(pMC->Run());
-		g_psCurrent = Running;
-
-		SetFocus(gameWindow);
-	}
+	MIF(m_pPlayer->Play());
 
 	return hr;
 
 CLEANUP:
-	CloseClip();
-	CloseInterfaces();
-	return hr;
-}
-
-void CloseClip()
-{
-	HRESULT hr;
-
-	// Stop media playback
-	if (pMC)
-		hr = pMC->Stop();
-
-	// Clear global flags
-	g_psCurrent = Stopped;
-
-	// Free DirectShow interfaces
-	CloseInterfaces();
-
-	// No current media state
-	g_psCurrent = Init;
-
-	// Reset the player window
-	RECT rect;
-	GetClientRect(gameWindow, &rect);
-	InvalidateRect(gameWindow, &rect, TRUE);
-}
-
-
-void CloseInterfaces(void)
-{
-	HRESULT hr;
-
-	// Disable event callbacks
-	if (pME)
-		hr = pME->SetNotifyWindow((OAHWND)NULL, 0, 0);
-
-	if (g_dwGraphRegister)
-	{
-		RemoveGraphFromRot(g_dwGraphRegister);
-		g_dwGraphRegister = 0;
-	}
-
-	// Release and zero DirectShow interfaces
-	SAFE_RELEASE(pME);
-	SAFE_RELEASE(pMC);
-	SAFE_RELEASE(pBA);
-	SAFE_RELEASE(pGB);
-}
-
-HRESULT InitializeWindowlessVMR(IBaseFilter **ppVmr9)
-{
-	IBaseFilter* pVmr = NULL;
-
-	if (!ppVmr9)
-		return E_POINTER;
-	*ppVmr9 = NULL;
-
-	// Create the VMR and add it to the filter graph.
-	HRESULT hr = CoCreateInstance(CLSID_VideoMixingRenderer9, NULL,
-		CLSCTX_INPROC, IID_IBaseFilter, (void**)&pVmr);
-
-	if (SUCCEEDED(hr))
-	{
-		hr = pGB->AddFilter(pVmr, L"Video Mixing Renderer 9");
-		if (SUCCEEDED(hr))
-		{
-			// Set the rendering mode and number of streams
-			SmartPtr <IVMRFilterConfig9> pConfig;
-
-			MIF(pVmr->QueryInterface(IID_IVMRFilterConfig9, (void**)&pConfig));
-			MIF(pConfig->SetRenderingMode(VMR9Mode_Windowless));
-
-			hr = pVmr->QueryInterface(IID_IVMRWindowlessControl9, (void**)&pWC);
-			if (SUCCEEDED(hr))
-			{
-				MIF(pWC->SetVideoClippingWindow(gameWindow));
-				MIF(pWC->SetBorderColor(RGB(0, 0, 0)));
-			}
-		}
-
-		// Don't release the pVmr interface because we are copying it into
-		// the caller's ppVmr9 pointer
-		*ppVmr9 = pVmr;
-	}
-
+	m_pPlayer->~DShowPlayer();
 	return hr;
 }
 

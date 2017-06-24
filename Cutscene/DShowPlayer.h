@@ -13,35 +13,10 @@
 
 #pragma once
 
-#ifndef WINVER				// Allow use of features specific to Windows 95 and Windows NT 4 or later.
-#define WINVER 0x0501		// Change this to the appropriate value to target Windows 98 and Windows 2000 or later.
-#endif
-
-#ifndef _WIN32_WINNT		// Allow use of features specific to Windows NT 4 or later.
-#define _WIN32_WINNT 0x0600		// Change this to the appropriate value to target Windows 98 and Windows 2000 or later.
-#endif						
-
-#ifndef _WIN32_WINDOWS		// Allow use of features specific to Windows 98 or later.
-#define _WIN32_WINDOWS 0x0410 // Change this to the appropriate value to target Windows Me or later.
-#endif
-
-#ifndef _WIN32_IE			// Allow use of features specific to IE 4.0 or later.
-#define _WIN32_IE 0x0501	// Change this to the appropriate value to target IE 5.0 or later.
-#endif
-
 // Windows Header Files:
 #include <windows.h>
 #include <strsafe.h>
 #include <dshow.h>
-
-// Include the v6 common controls in the manifest
-#pragma comment(linker, \
-    "\"/manifestdependency:type='Win32' "\
-    "name='Microsoft.Windows.Common-Controls' "\
-    "version='6.0.0.0' "\
-    "processorArchitecture='*' "\
-    "publicKeyToken='6595b64144ccf1df' "\
-    "language='*'\"")
 
 #ifndef SAFE_RELEASE
 #define SAFE_RELEASE(x) { if (x) { x->Release(); x = NULL; } }
@@ -96,7 +71,7 @@ public:
 	HRESULT DisplayModeChanged();
 
 	// events
-	HRESULT HandleGraphEvent(GraphEventCallback *pCB);
+	HRESULT HandleGraphEvent(void(*pCB)(long, LONG_PTR, LONG_PTR));
 
 	// seeking
 	BOOL	CanSeek() const;

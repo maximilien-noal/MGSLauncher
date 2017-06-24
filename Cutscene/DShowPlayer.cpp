@@ -129,7 +129,7 @@ HRESULT DShowPlayer::OpenFile(const WCHAR* sFileName)
 // Caution: Do not tear down the graph from inside the callback.
 //-----------------------------------------------------------------------------
 
-HRESULT DShowPlayer::HandleGraphEvent(GraphEventCallback *pCB)
+HRESULT DShowPlayer::HandleGraphEvent(void (*pCB)(long, LONG_PTR, LONG_PTR))
 {
 	if (pCB == NULL)
 	{
@@ -150,7 +150,7 @@ HRESULT DShowPlayer::HandleGraphEvent(GraphEventCallback *pCB)
 	while (SUCCEEDED(m_pEvent->GetEvent(&evCode, &param1, &param2, 0)))
 	{
 		// Invoke the callback.
-		pCB->OnGraphEvent(evCode, param1, param2);
+		pCB(evCode, param1, param2);
 
 		// Free the event data.
 		hr = m_pEvent->FreeEventParams(evCode, param1, param2);
@@ -631,7 +631,6 @@ HRESULT	DShowPlayer::RenderStreams(IBaseFilter *pSource)
 	}
 
 	SAFE_RELEASE(pEnum);
-	//SAFE_RELEASE(pVMR);
 	SAFE_RELEASE(pAudioRenderer);
 	SAFE_RELEASE(pGraph2);
 
