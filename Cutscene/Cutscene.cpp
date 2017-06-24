@@ -56,7 +56,7 @@ void OnPaint()
 		// The player has video, so ask the player to repaint. 
 		m_pPlayer->Repaint(hdc);
 	}
-	
+
 	EndPaint(gameWindow, &ps);
 }
 
@@ -204,7 +204,17 @@ HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND gameWindow)
 
 	while (m_pPlayer->State() == STATE_RUNNING)
 	{
-		
+		MSG msg;
+
+		// Give system threads time to run (and don't sample user input madly)
+		Sleep(100);
+
+		// Check and process window messages (like WM_KEYDOWN)
+		while (PeekMessage(&msg, gameWindow, 0, 0, PM_REMOVE))
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
 	}
 
 	return hr;
