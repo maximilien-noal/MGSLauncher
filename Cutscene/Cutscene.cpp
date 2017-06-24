@@ -185,7 +185,27 @@ HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND gameWindow)
 
 	MIF(m_pPlayer->OpenFile(szMovie));
 
+
+	// Invalidate the appliction window, in case there is an old video 
+	// frame from the previous file and there is no video now. (eg, the
+	// new file is audio only, or we failed to open this file.)
+	InvalidateRect(gameWindow, NULL, FALSE);
+
+	// If this file has a video stream, we need to notify 
+	// the VMR about the size of the destination rectangle.
+	// Invoking our OnSize() handler does this.
+	OnSize();
+
+	//We need to paint the video stream for the first time.
+	//Invoking our OnPaint() handler does this.
+	OnPaint();
+
 	MIF(m_pPlayer->Play());
+
+	while (m_pPlayer->State() == STATE_RUNNING)
+	{
+		
+	}
 
 	return hr;
 
