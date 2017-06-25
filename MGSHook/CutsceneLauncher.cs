@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace MGSHook
 {
@@ -73,7 +74,8 @@ namespace MGSHook
                     {
                         lastvid = wmvfilename;
                         //File.WriteAllText(@"C:\Jeux\mgsvr.log", String.Format("HINSTANCE : {0}  HWND : {1} Title : {2}", Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle, Process.GetCurrentProcess().MainWindowTitle));
-                        PlayVideo(wmvfilename, Process.GetCurrentProcess().Handle, NativeMethods.GetActiveWindow());
+                        OpenVideo(wmvfilename, Process.GetCurrentProcess().Handle, NativeMethods.GetActiveWindow());
+                        PlayVideo();
                     }
                 }
             }
@@ -102,7 +104,10 @@ namespace MGSHook
         #endregion CreateFile
 
         [DllImport("Cutscene.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        private static extern long PlayVideo([MarshalAs(UnmanagedType.LPTStr)] string filename, IntPtr processHandle, IntPtr gameWindow);
+        private static extern long OpenVideo([MarshalAs(UnmanagedType.LPTStr)] string filename, IntPtr processHandle, IntPtr gameWindow);
+
+        [DllImport("Cutscene.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern long PlayVideo();
 
         public CutsceneLauncher(RemoteHooking.IContext inContext, String inChannelName)
         {

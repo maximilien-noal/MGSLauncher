@@ -7,8 +7,8 @@
 const UINT WM_GRAPH_EVENT = WM_APP + 1;
 const UINT WM_GRAPHNOTIFY = WM_USER + 13;
 
+HWND			videoWindow = 0;
 HWND			gameWindow = 0;
-BOOL			hookedWndProc = false;
 DShowPlayer		*m_pPlayer = NULL;
 void(*graphEventfunctionPtr)(long, LONG_PTR, LONG_PTR);
 
@@ -17,10 +17,7 @@ void(*graphEventfunctionPtr)(long, LONG_PTR, LONG_PTR);
 //
 void Msg(TCHAR *szFormat, ...);
 
-//
-// Helper Macros (Jump-If-Failed, Log-If-Failed)
-//
-
+// Message-If-Failed
 #define MIF(x) if (FAILED(hr=(x))) \
     {Msg(TEXT("FAILED(hr=0x%x) in ") TEXT(#x) TEXT("\n\0"), hr); goto CLEANUP;}
 
@@ -38,7 +35,7 @@ void OnSize()
 	{
 		RECT rcWindow;
 		// Find the client area of the application.
-		GetClientRect(gameWindow, &rcWindow);
+		GetClientRect(videoWindow, &rcWindow);
 		//Notify the player.
 		m_pPlayer->UpdateVideoWindow(&rcWindow);
 	}
@@ -49,7 +46,7 @@ void OnPaint()
 	PAINTSTRUCT ps;
 	HDC hdc;
 
-	hdc = BeginPaint(gameWindow, &ps);
+	hdc = BeginPaint(videoWindow, &ps);
 
 	if (m_pPlayer->State() != STATE_CLOSED && m_pPlayer->HasVideo())
 	{
@@ -57,7 +54,7 @@ void OnPaint()
 		m_pPlayer->Repaint(hdc);
 	}
 
-	EndPaint(gameWindow, &ps);
+	EndPaint(videoWindow, &ps);
 }
 
 void OnStop()
@@ -87,7 +84,7 @@ static void OnGraphEvent(long eventCode, LONG_PTR param1, LONG_PTR param2)
 	}
 }
 
-static LRESULT CALLBACK CutsceneWndProc(UINT message, WPARAM wParam, LPARAM lParam)
+LONG WINAPI CutsceneWndProc(UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
 	{
@@ -133,7 +130,6 @@ static LRESULT CALLBACK CutsceneWndProc(UINT message, WPARAM wParam, LPARAM lPar
 void ErrorExit(LPTSTR lpszFunction)
 {
 	// Retrieve the system error message for the last-error code
-
 	LPVOID lpMsgBuf;
 	LPVOID lpDisplayBuf;
 	DWORD dw = GetLastError();
@@ -149,7 +145,6 @@ void ErrorExit(LPTSTR lpszFunction)
 		0, NULL);
 
 	// Display the error message and exit the process
-
 	lpDisplayBuf = (LPVOID)LocalAlloc(LMEM_ZEROINIT,
 		(lstrlen((LPCTSTR)lpMsgBuf) + lstrlen((LPCTSTR)lpszFunction) + 40) * sizeof(TCHAR));
 	StringCchPrintf((LPTSTR)lpDisplayBuf,
@@ -163,25 +158,46 @@ void ErrorExit(LPTSTR lpszFunction)
 	ExitProcess(dw);
 }
 
+BOOL CreateChildWindow(HINSTANCE hInstance, TCHAR *szFile)
+{
+	// Set up and register window class
+	WNDCLASS wc = { 0 };
+	wc.lpfnWndProc = (WNDPROC)CutsceneWndProc;
+	wc.hInstance = hInstance;
+	wc.lpszClassName = L"MGSVideoWindow";
+	if (!RegisterClass(&wc))
+		return FALSE;
 
-HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND gameWindow)
+	// Find the client area of the application.
+	RECT rcWindow;
+	GetClientRect(gameWindow, &rcWindow);
+
+	// Create a window that will display the video and react to user input
+	videoWindow = CreateWindowEx(
+		0, L"MGSVideoWindow", (LPCTSTR)NULL,
+		WS_CHILD | WS_VISIBLE,
+		0, 0, rcWindow.right, rcWindow.bottom,
+		gameWindow, NULL, hInstance, NULL);
+
+	return (videoWindow != NULL);
+}
+
+
+HRESULT OpenVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND window)
 {
 	HRESULT hr;
-	gameWindow = gameWindow;
+	gameWindow = window;
 
-	if (hookedWndProc == false)
+	if (!CreateChildWindow(processHandle, szMovie))
 	{
-		HHOOK hook = SetWindowsHookEx(WH_CALLWNDPROC, (HOOKPROC)&CutsceneWndProc, GetCurrentModuleHandle(), 0);
-		if (hook == NULL)
-		{
-			ErrorExit(L"SetWindowsHookEx");
-		}
-		hookedWndProc = true;
+		ErrorExit(L"CreateChildWindow");
 	}
 
-	m_pPlayer = new DShowPlayer(gameWindow);
+	SetForegroundWindow(videoWindow);
 
-	MIF(m_pPlayer->SetEventWindow(gameWindow, WM_GRAPH_EVENT));
+	m_pPlayer = new DShowPlayer(videoWindow);
+
+	MIF(m_pPlayer->SetEventWindow(videoWindow, WM_GRAPH_EVENT));
 
 	MIF(m_pPlayer->OpenFile(szMovie));
 
@@ -189,7 +205,7 @@ HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND gameWindow)
 	// Invalidate the appliction window, in case there is an old video 
 	// frame from the previous file and there is no video now. (eg, the
 	// new file is audio only, or we failed to open this file.)
-	InvalidateRect(gameWindow, NULL, FALSE);
+	InvalidateRect(videoWindow, NULL, FALSE);
 
 	// If this file has a video stream, we need to notify 
 	// the VMR about the size of the destination rectangle.
@@ -200,27 +216,38 @@ HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND gameWindow)
 	//Invoking our OnPaint() handler does this.
 	OnPaint();
 
+	return hr;
+
+CLEANUP:
+	m_pPlayer->~DShowPlayer();
+	return hr;
+}
+
+HRESULT PlayVideo(void)
+{
+	HRESULT hr;
 	MIF(m_pPlayer->Play());
 
 	while (m_pPlayer->State() == STATE_RUNNING)
 	{
 		MSG msg;
 
-		// Give system threads time to run (and don't sample user input madly)
+		//Give system threads time to run (and don't sample user input madly)
 		Sleep(100);
 
 		// Check and process window messages (like WM_KEYDOWN)
-		while (PeekMessage(&msg, gameWindow, 0, 0, PM_REMOVE))
+		while (PeekMessage(&msg, videoWindow, 0, 0, PM_REMOVE))
 		{
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
 	}
 
-	return hr;
+	goto CLEANUP;
 
 CLEANUP:
 	m_pPlayer->~DShowPlayer();
+	CloseWindow(videoWindow);
 	return hr;
 }
 
