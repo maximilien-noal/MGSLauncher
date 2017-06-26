@@ -84,7 +84,7 @@ static void OnGraphEvent(long eventCode, LONG_PTR param1, LONG_PTR param2)
 	}
 }
 
-LONG WINAPI CutsceneWndProc(UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT WINAPI CutsceneWndProc(UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
 	{
