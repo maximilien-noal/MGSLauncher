@@ -142,6 +142,8 @@ BOOL CreateHiddenWindow(HINSTANCE hInstance, TCHAR *szFile)
 LONG WINAPI WindowProc(HWND hWnd, UINT message,
 	WPARAM wParam, LPARAM lParam)
 {
+	HRESULT hr = ERROR_SUCCESS;
+
 	switch (message)
 	{
 		// Monitor keystrokes for manipulating video window
@@ -156,6 +158,16 @@ LONG WINAPI WindowProc(HWND hWnd, UINT message,
 			StopPlayback();
 			break;
 		}
+		break;
+
+	case WM_DISPLAYCHANGE:
+		SetFullscreen();
+		/*
+		if (FAILED(hr))
+		{
+			Msg(TEXT("FAILED(hr=0x%x) in ") TEXT("WM_DISPLAYCHANGE") TEXT("\n\0"), hr);
+		}
+		*/
 		break;
 
 	case WM_DESTROY:
