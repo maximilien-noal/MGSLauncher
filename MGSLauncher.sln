@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26430.13
+VisualStudioVersion = 15.0.26430.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MGSLauncher", "MGSLauncher\MGSLauncher.csproj", "{1C582FCE-F43E-4D03-B4A8-7D4399A66376}"
 EndProject
@@ -10,6 +10,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MGSHook", "MGSHook\MGSHook.csproj", "{D90FE6AA-EEB1-4EB3-8A31-A6D5131278EB}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TestVideo", "TestVideo\TestVideo.vcxproj", "{E2CEBA34-7F04-4B96-B688-CECB9138D7F6}"
+	ProjectSection(ProjectDependencies) = postProject
+		{EADE7662-14EE-48EC-A51F-5E5500BFA587} = {EADE7662-14EE-48EC-A51F-5E5500BFA587}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

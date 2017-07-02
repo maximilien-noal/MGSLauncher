@@ -163,8 +163,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 // Message handler for about box.
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	OpenVideo(L"C:\\Jeux\\MGS\\movie\\alaska.wmv", hInst, hDlg);
-	PlayVideo();
     UNREFERENCED_PARAMETER(lParam);
     switch (message)
     {
@@ -174,6 +172,8 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_COMMAND:
         if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
         {
+			OpenVideo(L"C:\\Jeux\\MGS\\movie\\alaska.wmv", hInst, hDlg);
+			PlayVideo();
             EndDialog(hDlg, LOWORD(wParam));
             return (INT_PTR)TRUE;
         }

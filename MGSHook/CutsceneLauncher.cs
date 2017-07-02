@@ -73,9 +73,11 @@ namespace MGSHook
                     if(lastvid != wmvfilename)
                     {
                         lastvid = wmvfilename;
-                        //File.WriteAllText(@"C:\Jeux\mgsvr.log", String.Format("HINSTANCE : {0}  HWND : {1} Title : {2}", Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle, Process.GetCurrentProcess().MainWindowTitle));
-                        OpenVideo(wmvfilename, Process.GetCurrentProcess().Handle, NativeMethods.GetActiveWindow());
-                        PlayVideo();
+                        Task.Factory.StartNew(() =>
+                        {
+                            OpenVideo(wmvfilename, Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle);
+                            PlayVideo();
+                        });
                     }
                 }
             }

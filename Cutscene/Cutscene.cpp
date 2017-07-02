@@ -7,15 +7,15 @@
 const UINT WM_GRAPH_EVENT = WM_APP + 1;
 const UINT WM_GRAPHNOTIFY = WM_USER + 13;
 
-HWND			videoWindow = 0;
-HWND			gameWindow = 0;
+HWND			videoWindow = NULL;
+HWND			gameWindow = NULL;
 DShowPlayer		*m_pPlayer = NULL;
-void(*graphEventfunctionPtr)(long, LONG_PTR, LONG_PTR);
 
 //
 // Function prototypes
 //
 void Msg(TCHAR *szFormat, ...);
+void(*graphEventfunctionPtr)(long, LONG_PTR, LONG_PTR);
 
 // Message-If-Failed
 #define MIF(x) if (FAILED(hr=(x))) \
@@ -31,7 +31,7 @@ HMODULE GetCurrentModuleHandle()
 
 void OnSize()
 {
-	if (m_pPlayer->State() != STATE_CLOSED && m_pPlayer->HasVideo())
+	if (m_pPlayer != NULL && m_pPlayer->State() != STATE_CLOSED && m_pPlayer->HasVideo())
 	{
 		RECT rcWindow;
 		// Find the client area of the application.
@@ -48,7 +48,7 @@ void OnPaint()
 
 	hdc = BeginPaint(videoWindow, &ps);
 
-	if (m_pPlayer->State() != STATE_CLOSED && m_pPlayer->HasVideo())
+	if (m_pPlayer != NULL && m_pPlayer->State() != STATE_CLOSED && m_pPlayer->HasVideo())
 	{
 		// The player has video, so ask the player to repaint. 
 		m_pPlayer->Repaint(hdc);
@@ -59,6 +59,11 @@ void OnPaint()
 
 void OnStop()
 {
+	if (m_pPlayer == NULL)
+	{
+		return;
+	}
+
 	HRESULT hr = m_pPlayer->Stop();
 
 	// Seek back to the start. 
@@ -72,6 +77,8 @@ void OnStop()
 
 	//Destroy player
 	m_pPlayer->~DShowPlayer();
+
+	SetForegroundWindow(gameWindow);
 }
 
 static void OnGraphEvent(long eventCode, LONG_PTR param1, LONG_PTR param2)
@@ -84,7 +91,7 @@ static void OnGraphEvent(long eventCode, LONG_PTR param1, LONG_PTR param2)
 	}
 }
 
-LRESULT WINAPI CutsceneWndProc(UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK CutsceneWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
 	{
@@ -121,10 +128,9 @@ LRESULT WINAPI CutsceneWndProc(UINT message, WPARAM wParam, LPARAM lParam)
 			m_pPlayer->HandleGraphEvent(graphEventfunctionPtr);
 			break;
 		default:
-			return CallWindowProc((WNDPROC)GetWindowLongPtr(gameWindow, GWLP_WNDPROC), gameWindow, message, wParam, lParam);
+			return DefWindowProc(hWnd, message, wParam, lParam);
 	}
-
-	return CallWindowProc((WNDPROC)GetWindowLongPtr(gameWindow, GWLP_WNDPROC), gameWindow, message, wParam, lParam);
+	return DefWindowProc(hWnd, message, wParam, lParam);
 }
 
 void ErrorExit(LPTSTR lpszFunction)
@@ -162,22 +168,21 @@ BOOL CreateChildWindow(HINSTANCE hInstance, TCHAR *szFile)
 {
 	// Set up and register window class
 	WNDCLASS wc = { 0 };
-	wc.lpfnWndProc = (WNDPROC)CutsceneWndProc;
+	wc.lpfnWndProc = (WNDPROC)&CutsceneWndProc;
 	wc.hInstance = hInstance;
 	wc.lpszClassName = L"MGSVideoWindow";
-	if (!RegisterClass(&wc))
-		return FALSE;
+	RegisterClass(&wc);
 
 	// Find the client area of the application.
 	RECT rcWindow;
 	GetClientRect(gameWindow, &rcWindow);
 
 	// Create a window that will display the video and react to user input
-	videoWindow = CreateWindowEx(
-		0, L"MGSVideoWindow", (LPCTSTR)NULL,
-		WS_CHILD | WS_VISIBLE,
-		0, 0, rcWindow.right, rcWindow.bottom,
-		gameWindow, NULL, hInstance, NULL);
+	videoWindow = CreateWindow(
+		L"MGSVideoWindow", L"MGSCutsceneWindow",
+		WS_POPUP | WS_VISIBLE | WS_MAXIMIZE,
+		0, 0, 0, 0,
+		NULL, NULL, hInstance, NULL);
 
 	return (videoWindow != NULL);
 }
@@ -236,7 +241,7 @@ HRESULT PlayVideo(void)
 		Sleep(100);
 
 		// Check and process window messages (like WM_KEYDOWN)
-		while (PeekMessage(&msg, videoWindow, 0, 0, PM_REMOVE))
+		while (GetMessage(&msg, videoWindow, 0, 0))
 		{
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
@@ -246,8 +251,14 @@ HRESULT PlayVideo(void)
 	goto CLEANUP;
 
 CLEANUP:
-	m_pPlayer->~DShowPlayer();
-	CloseWindow(videoWindow);
+	if (m_pPlayer != NULL)
+	{
+		m_pPlayer->~DShowPlayer();
+	}
+	if (videoWindow != NULL)
+	{
+		DestroyWindow(videoWindow);
+	}
 	return hr;
 }
 
