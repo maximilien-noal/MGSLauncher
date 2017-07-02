@@ -78,7 +78,7 @@ void OnStop()
 	//Destroy player
 	m_pPlayer->~DShowPlayer();
 
-	SetForegroundWindow(gameWindow);
+	ShowWindow(gameWindow, SW_SHOWDEFAULT);
 }
 
 static void OnGraphEvent(long eventCode, LONG_PTR param1, LONG_PTR param2)

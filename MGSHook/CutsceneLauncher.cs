@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 
 namespace MGSHook
 {
@@ -17,12 +18,25 @@ namespace MGSHook
 
         static CutsceneLauncher()
         {
+            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+
             string pathToCutsceneDll = Path.Combine(_runningDirectory, "Cutscene.dll");
             //Avoid "FileNotFoundException" when the Win32 loader tries to load cutscene.dll
             if (File.Exists(pathToCutsceneDll))
             {
                 cutsceneDllPointer = NativeMethods.LoadLibrary(pathToCutsceneDll);
             }
+        }
+
+        private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            var ex = e.ExceptionObject as Exception;
+            if(ex != null)
+            {
+                MessageBox.Show(ex.Message, ex.Source);
+            }
+            Process.GetCurrentProcess().CloseMainWindow();
+            Environment.Exit(1);
         }
 
         private static string _runningDirectory = Environment.CurrentDirectory;
@@ -73,6 +87,7 @@ namespace MGSHook
                     if(lastvid != wmvfilename)
                     {
                         lastvid = wmvfilename;
+                        NativeMethods.ShowWindow(Process.GetCurrentProcess().MainWindowHandle, NativeMethods.SW_MINIMIZE);
                         Task.Factory.StartNew(() =>
                         {
                             OpenVideo(wmvfilename, Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle);
