@@ -7,6 +7,8 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
 
 namespace MGSHook
 {
@@ -16,12 +18,25 @@ namespace MGSHook
 
         static CutsceneLauncher()
         {
+            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+
             string pathToCutsceneDll = Path.Combine(_runningDirectory, "Cutscene.dll");
             //Avoid "FileNotFoundException" when the Win32 loader tries to load cutscene.dll
             if (File.Exists(pathToCutsceneDll))
             {
                 cutsceneDllPointer = NativeMethods.LoadLibrary(pathToCutsceneDll);
             }
+        }
+
+        private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            var ex = e.ExceptionObject as Exception;
+            if(ex != null)
+            {
+                MessageBox.Show(ex.Message, ex.Source);
+            }
+            Process.GetCurrentProcess().CloseMainWindow();
+            Environment.Exit(1);
         }
 
         private static string _runningDirectory = Environment.CurrentDirectory;
@@ -72,8 +87,12 @@ namespace MGSHook
                     if(lastvid != wmvfilename)
                     {
                         lastvid = wmvfilename;
-                        //File.WriteAllText(@"C:\Jeux\mgsvr.log", String.Format("HINSTANCE : {0}  HWND : {1} Title : {2}", Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle, Process.GetCurrentProcess().MainWindowTitle));
-                        PlayVideo(wmvfilename, Process.GetCurrentProcess().Handle, NativeMethods.GetActiveWindow());
+                        NativeMethods.ShowWindow(Process.GetCurrentProcess().MainWindowHandle, NativeMethods.SW_MINIMIZE);
+                        Task.Factory.StartNew(() =>
+                        {
+                            OpenVideo(wmvfilename, Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle);
+                            PlayVideo();
+                        });
                     }
                 }
             }
@@ -102,7 +121,10 @@ namespace MGSHook
         #endregion CreateFile
 
         [DllImport("Cutscene.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        private static extern long PlayVideo([MarshalAs(UnmanagedType.LPTStr)] string filename, IntPtr processHandle, IntPtr gameWindow);
+        private static extern long OpenVideo([MarshalAs(UnmanagedType.LPTStr)] string filename, IntPtr processHandle, IntPtr gameWindow);
+
+        [DllImport("Cutscene.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern long PlayVideo();
 
         public CutsceneLauncher(RemoteHooking.IContext inContext, String inChannelName)
         {
