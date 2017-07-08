@@ -178,17 +178,17 @@ BOOL CreateChildWindow(HINSTANCE hInstance, TCHAR *szFile)
 	GetClientRect(gameWindow, &rcWindow);
 
 	// Create a window that will display the video and react to user input
-	videoWindow = CreateWindow(
+	videoWindow = CreateWindowEx(WS_EX_NOACTIVATE,
 		L"MGSVideoWindow", L"MGSCutsceneWindow",
 		WS_POPUP | WS_VISIBLE | WS_MAXIMIZE,
-		0, 0, 0, 0,
+		0, 0, rcWindow.right, rcWindow.bottom,
 		NULL, NULL, hInstance, NULL);
 
 	return (videoWindow != NULL);
 }
 
 
-HRESULT OpenVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND window)
+HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND window)
 {
 	HRESULT hr;
 	gameWindow = window;
@@ -198,19 +198,22 @@ HRESULT OpenVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND window)
 		ErrorExit(L"CreateChildWindow");
 	}
 
-	SetForegroundWindow(videoWindow);
-
 	m_pPlayer = new DShowPlayer(videoWindow);
 
 	MIF(m_pPlayer->SetEventWindow(videoWindow, WM_GRAPH_EVENT));
 
 	MIF(m_pPlayer->OpenFile(szMovie));
 
-
 	// Invalidate the appliction window, in case there is an old video 
 	// frame from the previous file and there is no video now. (eg, the
 	// new file is audio only, or we failed to open this file.)
 	InvalidateRect(videoWindow, NULL, FALSE);
+
+	// Find the client area of the application.
+	RECT rcWindow;
+	GetClientRect(gameWindow, &rcWindow);
+
+	SetForegroundWindow(videoWindow);
 
 	// If this file has a video stream, we need to notify 
 	// the VMR about the size of the destination rectangle.
@@ -221,24 +224,11 @@ HRESULT OpenVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND window)
 	//Invoking our OnPaint() handler does this.
 	OnPaint();
 
-	return hr;
-
-CLEANUP:
-	m_pPlayer->~DShowPlayer();
-	return hr;
-}
-
-HRESULT PlayVideo(void)
-{
-	HRESULT hr;
 	MIF(m_pPlayer->Play());
 
 	while (m_pPlayer->State() == STATE_RUNNING)
 	{
 		MSG msg;
-
-		//Give system threads time to run (and don't sample user input madly)
-		Sleep(100);
 
 		// Check and process window messages (like WM_KEYDOWN)
 		while (GetMessage(&msg, videoWindow, 0, 0))
@@ -248,7 +238,7 @@ HRESULT PlayVideo(void)
 		}
 	}
 
-	goto CLEANUP;
+	return hr;
 
 CLEANUP:
 	if (m_pPlayer != NULL)

@@ -90,8 +90,7 @@ namespace MGSHook
                         NativeMethods.ShowWindow(Process.GetCurrentProcess().MainWindowHandle, NativeMethods.SW_MINIMIZE);
                         Task.Factory.StartNew(() =>
                         {
-                            OpenVideo(wmvfilename, Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle);
-                            PlayVideo();
+                            PlayVideo(wmvfilename, Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle);
                         });
                     }
                 }
@@ -121,10 +120,7 @@ namespace MGSHook
         #endregion CreateFile
 
         [DllImport("Cutscene.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        private static extern long OpenVideo([MarshalAs(UnmanagedType.LPTStr)] string filename, IntPtr processHandle, IntPtr gameWindow);
-
-        [DllImport("Cutscene.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        private static extern long PlayVideo();
+        private static extern long PlayVideo([MarshalAs(UnmanagedType.LPTStr)] string filename, IntPtr processHandle, IntPtr gameWindow);
 
         public CutsceneLauncher(RemoteHooking.IContext inContext, String inChannelName)
         {

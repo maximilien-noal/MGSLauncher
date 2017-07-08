@@ -172,8 +172,7 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_COMMAND:
         if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
         {
-			OpenVideo(L"C:\\Jeux\\MGS\\movie\\e399.wmv", hInst, hDlg);
-			PlayVideo();
+			PlayVideo(L"C:\\Jeux\\MGS\\movie\\e399.wmv", hInst, hDlg);
             EndDialog(hDlg, LOWORD(wParam));
             return (INT_PTR)TRUE;
         }

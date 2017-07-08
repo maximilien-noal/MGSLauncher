@@ -12,5 +12,4 @@
 
 #include <windows.h>
 
-CUTSCENE_API HRESULT OpenVideo(LPTSTR lpszMovie, HINSTANCE processHandle, HWND window);
-CUTSCENE_API HRESULT PlayVideo(void);
+CUTSCENE_API HRESULT PlayVideo(LPTSTR lpszMovie, HINSTANCE processHandle, HWND window);
