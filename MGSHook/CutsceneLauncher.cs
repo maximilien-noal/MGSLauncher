@@ -88,18 +88,15 @@ namespace MGSHook
                     if(lastvid != wmvfilename)
                     {
                         lastvid = wmvfilename;
-                        Task.Factory.StartNew(() =>
+                        try
                         {
-                            try
-                            {
-                                PlayVideo(wmvfilename, Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle);
-                            }
-                            catch(Win32Exception e)
-                            {
-                                MessageBox.Show(e.Message);
-                                Environment.Exit(1);
-                            }
-                        });
+                            PlayVideo(wmvfilename, Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle);
+                        }
+                        catch(Win32Exception e)
+                        {
+                            MessageBox.Show(e.Message);
+                            Environment.Exit(1);
+                        }
                     }
                 }
             }
