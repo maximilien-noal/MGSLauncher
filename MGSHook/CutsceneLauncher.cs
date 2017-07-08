@@ -1,6 +1,7 @@
 ﻿using EasyHook;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -90,7 +91,15 @@ namespace MGSHook
                         NativeMethods.ShowWindow(Process.GetCurrentProcess().MainWindowHandle, NativeMethods.SW_MINIMIZE);
                         Task.Factory.StartNew(() =>
                         {
-                            PlayVideo(wmvfilename, Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle);
+                            try
+                            {
+                                PlayVideo(wmvfilename, Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle);
+                            }
+                            catch(Win32Exception e)
+                            {
+                                MessageBox.Show(e.Message);
+                                Environment.Exit(1);
+                            }
                         });
                     }
                 }
