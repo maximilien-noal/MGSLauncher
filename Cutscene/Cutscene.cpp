@@ -35,7 +35,7 @@ void OnSize()
 	{
 		RECT rcWindow;
 		// Find the client area of the application.
-		GetClientRect(videoWindow, &rcWindow);
+		GetClientRect(gameWindow, &rcWindow);
 		//Notify the player.
 		m_pPlayer->UpdateVideoWindow(&rcWindow);
 	}
@@ -46,7 +46,7 @@ void OnPaint()
 	PAINTSTRUCT ps;
 	HDC hdc;
 
-	hdc = BeginPaint(videoWindow, &ps);
+	hdc = BeginPaint(gameWindow, &ps);
 
 	if (m_pPlayer != NULL && m_pPlayer->State() != STATE_CLOSED && m_pPlayer->HasVideo())
 	{
@@ -54,7 +54,7 @@ void OnPaint()
 		m_pPlayer->Repaint(hdc);
 	}
 
-	EndPaint(videoWindow, &ps);
+	EndPaint(gameWindow, &ps);
 }
 
 void OnStop()
@@ -95,40 +95,40 @@ LRESULT CALLBACK CutsceneWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 {
 	switch (message)
 	{
-		case WM_SIZE:
-			OnSize();
-			break;
+	case WM_SIZE:
+		OnSize();
+		break;
 
-		case WM_PAINT:
-			OnPaint();
-			break;
+	case WM_PAINT:
+		OnPaint();
+		break;
 
-		case WM_MOVE:
-			OnPaint();
-			break;
+	case WM_MOVE:
+		OnPaint();
+		break;
 
-		case WM_DISPLAYCHANGE:
-			m_pPlayer->DisplayModeChanged();
-			break;
+	case WM_DISPLAYCHANGE:
+		m_pPlayer->DisplayModeChanged();
+		break;
 
-		case WM_ERASEBKGND:
-			return 1;
+	case WM_ERASEBKGND:
+		return 1;
 
-		case WM_KEYDOWN:
-			OnStop();
-			break;
+	case WM_KEYDOWN:
+		OnStop();
+		break;
 
-		case WM_GRAPHNOTIFY:
-			graphEventfunctionPtr = &OnGraphEvent;
-			m_pPlayer->HandleGraphEvent(graphEventfunctionPtr);
-			break;
+	case WM_GRAPHNOTIFY:
+		graphEventfunctionPtr = &OnGraphEvent;
+		m_pPlayer->HandleGraphEvent(graphEventfunctionPtr);
+		break;
 
-		case WM_GRAPH_EVENT:
-			graphEventfunctionPtr = &OnGraphEvent;
-			m_pPlayer->HandleGraphEvent(graphEventfunctionPtr);
-			break;
-		default:
-			return DefWindowProc(hWnd, message, wParam, lParam);
+	case WM_GRAPH_EVENT:
+		graphEventfunctionPtr = &OnGraphEvent;
+		m_pPlayer->HandleGraphEvent(graphEventfunctionPtr);
+		break;
+	default:
+		return DefWindowProc(hWnd, message, wParam, lParam);
 	}
 	return DefWindowProc(hWnd, message, wParam, lParam);
 }
@@ -193,27 +193,21 @@ HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND window)
 	HRESULT hr;
 	gameWindow = window;
 
-	if (!CreateChildWindow(processHandle, szMovie))
+	if (!SubclassWindow(gameWindow, &CutsceneWndProc))
 	{
-		ErrorExit(L"CreateChildWindow");
+		ErrorExit(L"SubclassWindow");
 	}
 
-	m_pPlayer = new DShowPlayer(videoWindow);
+	m_pPlayer = new DShowPlayer(gameWindow);
 
-	MIF(m_pPlayer->SetEventWindow(videoWindow, WM_GRAPH_EVENT));
+	MIF(m_pPlayer->SetEventWindow(gameWindow, WM_GRAPH_EVENT));
 
 	MIF(m_pPlayer->OpenFile(szMovie));
 
 	// Invalidate the appliction window, in case there is an old video 
 	// frame from the previous file and there is no video now. (eg, the
 	// new file is audio only, or we failed to open this file.)
-	InvalidateRect(videoWindow, NULL, FALSE);
-
-	// Find the client area of the application.
-	RECT rcWindow;
-	GetClientRect(gameWindow, &rcWindow);
-
-	SetForegroundWindow(videoWindow);
+	InvalidateRect(gameWindow, NULL, FALSE);
 
 	// If this file has a video stream, we need to notify 
 	// the VMR about the size of the destination rectangle.
@@ -231,7 +225,7 @@ HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND window)
 		MSG msg;
 
 		// Check and process window messages (like WM_KEYDOWN)
-		while (GetMessage(&msg, videoWindow, 0, 0))
+		while (GetMessage(&msg, gameWindow, 0, 0))
 		{
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
@@ -296,5 +290,3 @@ void Msg(TCHAR *szFormat, ...)
 	// altogether, depending on your application.
 	MessageBox(NULL, szBuffer, (LPCWSTR)lpDisplayBuf, MB_OK);
 }
-
-
