@@ -88,19 +88,15 @@ namespace MGSHook
                     if(lastvid != wmvfilename)
                     {
                         lastvid = wmvfilename;
-                        NativeMethods.ShowWindow(Process.GetCurrentProcess().MainWindowHandle, NativeMethods.SW_MINIMIZE);
-                        Task.Factory.StartNew(() =>
+                        try
                         {
-                            try
-                            {
-                                PlayVideo(wmvfilename, Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle);
-                            }
-                            catch(Win32Exception e)
-                            {
-                                MessageBox.Show(e.Message);
-                                Environment.Exit(1);
-                            }
-                        });
+                            PlayVideo(wmvfilename);
+                        }
+                        catch(Win32Exception e)
+                        {
+                            MessageBox.Show(e.Message);
+                            Environment.Exit(1);
+                        }
                     }
                 }
             }
@@ -129,7 +125,7 @@ namespace MGSHook
         #endregion CreateFile
 
         [DllImport("Cutscene.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        private static extern long PlayVideo([MarshalAs(UnmanagedType.LPTStr)] string filename, IntPtr processHandle, IntPtr gameWindow);
+        private static extern long PlayVideo([MarshalAs(UnmanagedType.LPTStr)] string filename);
 
         public CutsceneLauncher(RemoteHooking.IContext inContext, String inChannelName)
         {

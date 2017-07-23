@@ -188,10 +188,21 @@ BOOL CreateChildWindow(HINSTANCE hInstance, TCHAR *szFile)
 }
 
 
-HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND window)
+HRESULT PlayVideo(LPTSTR szMovie)
 {
 	HRESULT hr;
-	gameWindow = window;
+
+	//from minwindef.h : "HMODULEs can be used in place of HINSTANCEs" 
+	HINSTANCE processHandle = (HINSTANCE)GetCurrentProcess();
+	
+	gameWindow = GetForegroundWindow();
+
+	if (gameWindow == NULL)
+	{
+		goto CLEANUP;
+	}
+
+	ShowWindow(gameWindow, SW_FORCEMINIMIZE);
 
 	if (!CreateChildWindow(processHandle, szMovie))
 	{
@@ -238,6 +249,8 @@ HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND window)
 		}
 	}
 
+	ShowWindow(gameWindow, SW_SHOWDEFAULT);
+
 	return hr;
 
 CLEANUP:
@@ -249,6 +262,9 @@ CLEANUP:
 	{
 		DestroyWindow(videoWindow);
 	}
+
+	ShowWindow(gameWindow, SW_SHOWDEFAULT);
+
 	return hr;
 }
 
