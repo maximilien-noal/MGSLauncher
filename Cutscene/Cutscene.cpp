@@ -11,6 +11,8 @@ const UINT WM_GRAPHNOTIFY = WM_USER + 13;
 HWND			gameWindow = NULL;
 DShowPlayer		*m_pPlayer = NULL;
 WNDPROC			prevWndProc = NULL;
+UINT_PTR		uIdSubclass = 0;
+
 
 //
 // Function prototypes
@@ -123,6 +125,11 @@ LRESULT CALLBACK CutsceneWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 		return CallWindowProc(prevWndProc, gameWindow, message, wParam, lParam);
 		break;
 
+	case WM_CLOSE:
+		OnStop();
+		return CallWindowProc(prevWndProc, gameWindow, message, wParam, lParam);
+		break;
+
 	case WM_NCDESTROY:
 		OnStop();
 		return CallWindowProc(prevWndProc, gameWindow, message, wParam, lParam);
@@ -141,19 +148,6 @@ LRESULT CALLBACK CutsceneWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 		return CallWindowProc(prevWndProc, gameWindow, message, wParam, lParam);
 	}
 	return CallWindowProc(prevWndProc, gameWindow, message, wParam, lParam);
-}
-
-void UnSubClass(HWND window)
-{
-	UINT_PTR uIdSubclass = 0;
-	RemoveWindowSubclass(window, CutsceneWndProc, uIdSubclass);
-
-	//Invalidate the window so that the WM_PAINT message is sent, allowing it to redraw itself once the video has passed
-	RECT rc;
-	if (GetClientRect(window, &rc))
-	{
-		InvalidateRect(window, &rc, TRUE);
-	}
 }
 
 void ErrorExit(LPTSTR lpszFunction)
@@ -187,21 +181,36 @@ void ErrorExit(LPTSTR lpszFunction)
 	ExitProcess(dw);
 }
 
+void UnSubClass(HWND window)
+{
+	RemoveWindowSubclass(window, CutsceneWndProc, uIdSubclass);
+	
+
+	//Invalidate the window so that the WM_PAINT message is sent, allowing it to redraw itself once the video has passed
+	RECT rc;
+	if (GetClientRect(window, &rc))
+	{
+		InvalidateRect(window, &rc, TRUE);
+	}
+}
+
 HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND window)
 {
-	HRESULT hr;
+	HRESULT hr = 0;
 	gameWindow = window;
-	UINT_PTR uIdSubclass = 0;
 
 	prevWndProc = (WNDPROC)GetWindowLongPtr(gameWindow, GWLP_WNDPROC);
 
-	SetWindowSubclass(gameWindow, CutsceneWndProc, uIdSubclass, NULL);
+	if (!SetWindowSubclass(gameWindow, CutsceneWndProc, uIdSubclass, NULL))
+	{
+		goto CLEANUP;
+	}
 
 	m_pPlayer = new DShowPlayer(gameWindow);
 
-	MIF(m_pPlayer->SetEventWindow(gameWindow, WM_GRAPH_EVENT));
+	m_pPlayer->SetEventWindow(gameWindow, WM_GRAPH_EVENT);
 
-	MIF(m_pPlayer->OpenFile(szMovie));
+	m_pPlayer->OpenFile(szMovie);
 
 	// Invalidate the appliction window, in case there is an old video 
 	// frame from the previous file and there is no video now. (eg, the
@@ -217,7 +226,7 @@ HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND window)
 	//Invoking our OnPaint() handler does this.
 	OnPaint();
 
-	MIF(m_pPlayer->Play());
+	m_pPlayer->Play();
 
 	while (m_pPlayer->State() == STATE_RUNNING)
 	{
