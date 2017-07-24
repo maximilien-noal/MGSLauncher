@@ -6,7 +6,6 @@
 #include <CommCtrl.h>
 
 const UINT WM_GRAPH_EVENT = WM_APP + 1;
-const UINT WM_GRAPHNOTIFY = WM_USER + 13;
 
 HWND			gameWindow = NULL;
 DShowPlayer		*m_pPlayer = NULL;
@@ -135,11 +134,6 @@ LRESULT CALLBACK CutsceneWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 		return CallWindowProc(prevWndProc, gameWindow, message, wParam, lParam);
 		break;
 
-	case WM_GRAPHNOTIFY:
-		graphEventfunctionPtr = &OnGraphEvent;
-		m_pPlayer->HandleGraphEvent(graphEventfunctionPtr);
-		break;
-
 	case WM_GRAPH_EVENT:
 		graphEventfunctionPtr = &OnGraphEvent;
 		m_pPlayer->HandleGraphEvent(graphEventfunctionPtr);
@@ -230,17 +224,22 @@ HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND window)
 
 	while (m_pPlayer->State() == STATE_RUNNING)
 	{
-		MSG msg;
-
 		// Check and process window messages (like WM_KEYDOWN)
-		while (GetMessage(&msg, gameWindow, 0, 0))
+		MSG msg;
+		BOOL bRet;
+		while (bRet = (GetMessage(&msg, gameWindow, 0, 0)) != 0)
 		{
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
+			if (bRet == -1)
+			{
+				goto CLEANUP;
+			}
+			else
+			{
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			}
 		}
 	}
-
-	return hr;
 
 CLEANUP:
 	if (m_pPlayer != NULL)
