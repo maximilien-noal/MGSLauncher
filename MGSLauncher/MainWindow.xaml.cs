@@ -13,6 +13,14 @@ namespace MGSLauncher
 {
     public partial class MainWindow : Window
     {
+        public bool IsDgVoodoo2Deactivated
+        {
+            get { return (bool)GetValue(IsDgVoodoo2DeactivatedProperty); }
+            set { SetValue(IsDgVoodoo2DeactivatedProperty, value); }
+        }
+        public static readonly DependencyProperty IsDgVoodoo2DeactivatedProperty =
+            DependencyProperty.Register("IsDgVoodoo2Deactivated", typeof(bool), typeof(MainWindow), new PropertyMetadata(Properties.Settings.Default.IsDgVoodoo2Deactivated));
+
         public DelegateCommand Play { get; private set; }
         public DelegateCommand PlayVR { get; private set; }
         public DelegateCommand Quit { get; private set; }

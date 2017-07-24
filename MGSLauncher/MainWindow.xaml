@@ -9,9 +9,10 @@
         <Grid.Background>
             <ImageBrush ImageSource="Background.png" />
         </Grid.Background>
+        <CheckBox Name="DeactivateDgVoodoo2CheckBox" IsChecked="{Binding IsDgVoodoo2Deactivated}" Content="dgVoodoo2 actif" VerticalContentAlignment="Center" Foreground="White" Width="113" Height="18" Margin="51,328,468,103" />
+
         <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,41,40" TextBlock.FontFamily="Sans">
-            <Button Name="PlayButton" Command="{Binding Play}" Content="Metal Gear Solid" Foreground="White" Width="113" Height="18" Background="Transparent" BorderBrush="Transparent" Margin="0,0,0,47">
-            </Button>
+            <Button Name="PlayButton" Command="{Binding Play}" Content="Metal Gear Solid" Foreground="White" Width="113" Height="18" Background="Transparent" BorderBrush="Transparent" Margin="0,0,0,47"/>
             <Button Name="VRButton" Command="{Binding PlayVR}" Content="Missions VR" Foreground="White" Width="113" Height="18" Background="Transparent" BorderBrush="Transparent" Margin="0,0,0,45" />
             <Button Name="QuitButton" Command="{Binding Quit}" Content="Quitter" Foreground="White" Width="113" Height="18" Background="Transparent" BorderBrush="Transparent" />
         </StackPanel>

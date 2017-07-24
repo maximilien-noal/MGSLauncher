@@ -22,5 +22,17 @@ namespace MGSLauncher.Properties {
                 return defaultInstance;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool IsDgVoodoo2Deactivated {
+            get {
+                return ((bool)(this["IsDgVoodoo2Deactivated"]));
+            }
+            set {
+                this["IsDgVoodoo2Deactivated"] = value;
+            }
+        }
     }
 }
