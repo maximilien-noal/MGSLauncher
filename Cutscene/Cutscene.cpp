@@ -3,6 +3,7 @@
 #include "stdafx.h"
 #include "Cutscene.h"
 #include "DShowPlayer.h"
+#include <CommCtrl.h>
 
 const UINT WM_GRAPH_EVENT = WM_APP + 1;
 const UINT WM_GRAPHNOTIFY = WM_USER + 13;
