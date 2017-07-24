@@ -190,19 +190,19 @@ BOOL CreateChildWindow(HINSTANCE hInstance, TCHAR *szFile)
 
 HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND window)
 {
-	HRESULT hr;
+	HRESULT hr = 0;
 	gameWindow = window;
 
 	if (!CreateChildWindow(processHandle, szMovie))
 	{
-		ErrorExit(L"CreateChildWindow");
+		goto CLEANUP;
 	}
 
 	m_pPlayer = new DShowPlayer(videoWindow);
 
-	MIF(m_pPlayer->SetEventWindow(videoWindow, WM_GRAPH_EVENT));
+	m_pPlayer->SetEventWindow(videoWindow, WM_GRAPH_EVENT);
 
-	MIF(m_pPlayer->OpenFile(szMovie));
+	m_pPlayer->OpenFile(szMovie);
 
 	// Invalidate the appliction window, in case there is an old video 
 	// frame from the previous file and there is no video now. (eg, the
@@ -224,7 +224,7 @@ HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND window)
 	//Invoking our OnPaint() handler does this.
 	OnPaint();
 
-	MIF(m_pPlayer->Play());
+	m_pPlayer->Play();
 
 	while (m_pPlayer->State() == STATE_RUNNING)
 	{
@@ -237,8 +237,6 @@ HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND window)
 			DispatchMessage(&msg);
 		}
 	}
-
-	return hr;
 
 CLEANUP:
 	if (m_pPlayer != NULL)
