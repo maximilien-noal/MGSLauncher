@@ -1,13 +1,10 @@
 ﻿using EasyHook;
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -15,14 +12,17 @@ namespace MGSHook
 {
     public class CutsceneLauncher : IEntryPoint
     {
+        private IpcInterface _ipcInterface;
         private static IntPtr cutsceneDllPointer;
+        private static string _runningDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
         static CutsceneLauncher()
         {
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
             string pathToCutsceneDll = Path.Combine(_runningDirectory, "Cutscene.dll");
-            //Avoid "FileNotFoundException" when the Win32 loader tries to load cutscene.dll
+
+            //Avoids a "FileNotFoundException" when the Win32 loader tries to load cutscene.dll
             if (File.Exists(pathToCutsceneDll))
             {
                 cutsceneDllPointer = NativeMethods.LoadLibrary(pathToCutsceneDll);
@@ -36,14 +36,8 @@ namespace MGSHook
             {
                 MessageBox.Show(ex.Message, ex.Source);
             }
-            Process.GetCurrentProcess().CloseMainWindow();
-            Environment.Exit(1);
         }
 
-        private static string _runningDirectory = Environment.CurrentDirectory;
-        IpcInterface _ipcInterface;
-
-        #region CreateFile
         LocalHook _createFileLocalHook;
 
         public static IntPtr CreateFileHookMethod(
@@ -67,8 +61,15 @@ namespace MGSHook
                 templateFile);
         }
 
+        /// <summary>
+        /// The absolute path to the last played WMV file, so it isn't played twice in a row.
+        /// </summary>
         private static string lastvid = "";
 
+        /// <summary>
+        /// Tries to start a video playback. Displays the native exception if it can catch it
+        /// </summary>
+        /// <param name="filename">The absolute file path to the WMV file</param>
         private static void TryPlayVideo(string filename)
         {
             if (string.IsNullOrWhiteSpace(filename))
@@ -88,7 +89,11 @@ namespace MGSHook
                     if(lastvid != wmvfilename)
                     {
                         lastvid = wmvfilename;
+
+                        //Puts the game's window in the Taskbar
                         NativeMethods.ShowWindow(Process.GetCurrentProcess().MainWindowHandle, NativeMethods.SW_MINIMIZE);
+
+                        //Starting it in a thread avoids a crash of the game
                         Task.Factory.StartNew(() =>
                         {
                             try
@@ -98,7 +103,6 @@ namespace MGSHook
                             catch(Win32Exception e)
                             {
                                 MessageBox.Show(e.Message);
-                                Environment.Exit(1);
                             }
                         });
                     }
@@ -126,11 +130,19 @@ namespace MGSHook
             [MarshalAs(UnmanagedType.U4)] FileAttributes flagsAndAttributes,
             IntPtr templateFile);
 
-        #endregion CreateFile
-
+        /// <summary>
+        /// Plays a video in a child video put a the front of the z-order
+        /// </summary>
+        /// <param name="filename">The absolute path of the WMV file to play</param>
+        /// <param name="processHandle">The game's process handle (HINSTANCE)</param>
+        /// <param name="gameWindow">The game's main window HWND</param>
+        /// <returns></returns>
         [DllImport("Cutscene.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         private static extern long PlayVideo([MarshalAs(UnmanagedType.LPTStr)] string filename, IntPtr processHandle, IntPtr gameWindow);
 
+        /// <summary>
+        /// Used by EasyHook (see IEntryPoint)
+        /// </summary>
         public CutsceneLauncher(RemoteHooking.IContext inContext, String inChannelName)
         {
             // connect to host...
@@ -138,6 +150,9 @@ namespace MGSHook
             _ipcInterface.Ping();
         }
 
+        /// <summary>
+        /// Used by EasyHook (see IEntryPoint)
+        /// </summary>
         public void Run(RemoteHooking.IContext inContext, String inChannelName)
         {
             // install hook...
@@ -157,7 +172,7 @@ namespace MGSHook
             catch (Exception exception)
             {
                 _ipcInterface.ReportException(exception);
-                if(cutsceneDllPointer != null)
+                if (cutsceneDllPointer != null)
                 {
                     NativeMethods.FreeLibrary(cutsceneDllPointer);
                 }

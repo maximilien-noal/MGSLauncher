@@ -5,7 +5,6 @@
 #include "DShowPlayer.h"
 
 const UINT WM_GRAPH_EVENT = WM_APP + 1;
-const UINT WM_GRAPHNOTIFY = WM_USER + 13;
 
 HWND			videoWindow = NULL;
 HWND			gameWindow = NULL;
@@ -116,11 +115,6 @@ LRESULT CALLBACK CutsceneWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 
 		case WM_KEYDOWN:
 			OnStop();
-			break;
-
-		case WM_GRAPHNOTIFY:
-			graphEventfunctionPtr = &OnGraphEvent;
-			m_pPlayer->HandleGraphEvent(graphEventfunctionPtr);
 			break;
 
 		case WM_GRAPH_EVENT:
