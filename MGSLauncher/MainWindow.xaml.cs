@@ -105,6 +105,15 @@ namespace MGSLauncher
                 }
                 else
                 {
+                    var psInfo = new ProcessStartInfo(executable);
+                    var gameProcess = new Process();
+                    gameProcess.StartInfo = psInfo;
+                    gameProcess.EnableRaisingEvents = true;
+
+                    if (gameProcess.Start())
+                    {
+                        gameProcess.Exited += OnGameExit;
+                    }
                     Process.Start(executable);
                     Application.Current.Shutdown();
                 }
@@ -112,8 +121,13 @@ namespace MGSLauncher
             catch (Exception e)
             {
                 this.WindowState = WindowState.Normal;
-                Debug.WriteLine(e.Message);
+                MessageBox.Show(String.Format("{0}:{1}{2}", e.Message, Environment.NewLine, e.StackTrace), "Error on game launch");
             }
+        }
+
+        private void OnGameExit(object sender, EventArgs e)
+        {
+            Application.Current.Shutdown();
         }
 
         private void ShowOptions_Execute(object parameters)
