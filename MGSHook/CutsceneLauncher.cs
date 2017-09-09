@@ -16,7 +16,7 @@ namespace MGSHook
         private static IntPtr cutsceneDllPointer;
         private static string _runningDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
         /// <summary>
-        /// The last time we launched a cutscene, so it isn't played twice in a row, as the game tries to open the same DDV file multiple times (resulting in a crash)
+        /// The last time we launched a cutscene, so it isn't played twice in a row, as the game tries to open the same DDV file multiple times (which results in a crash)
         /// </summary>
         private static DateTime _lastvidFilePlayTime = DateTime.MinValue;
         static CutsceneLauncher()
@@ -65,7 +65,7 @@ namespace MGSHook
         }
 
         /// <summary>
-        /// Tries to start a video playback. Displays the native exception if it can catch it
+        /// Tries to start a video playback. Displays an exception if one occurs
         /// </summary>
         /// <param name="filename">The absolute file path to the WMV file</param>
         private static void TryPlayVideo(string filename)
@@ -75,7 +75,7 @@ namespace MGSHook
                 return;
             }
 
-            if ((filename.ToLower().Contains("movie") && Path.GetExtension(filename.ToLower()) == ".ddv") == false)
+            if (filename.ToLower().Contains("movie") == false || Path.GetExtension(filename.ToLower()) != ".ddv")
             {
                 return;
             }
@@ -103,7 +103,7 @@ namespace MGSHook
                 {
                     PlayVideo(wmvfilename, Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle);
                 }
-                catch (Win32Exception e)
+                catch (Exception e)
                 {
                     MessageBox.Show(e.Message);
                 }
@@ -145,7 +145,7 @@ namespace MGSHook
             IntPtr templateFile);
 
         /// <summary>
-        /// Plays a video in a child video put a the front of the z-order
+        /// Plays a video in a child window put a the front of the z-order with SetForegroundWindow
         /// </summary>
         /// <param name="filename">The absolute path of the WMV file to play</param>
         /// <param name="processHandle">The game's process handle (HINSTANCE)</param>
