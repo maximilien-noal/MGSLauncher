@@ -16,7 +16,7 @@ namespace MGSHook
         private static IntPtr cutsceneDllPointer;
         private static string _runningDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
         /// <summary>
-        /// The last time we launch a cutscene, so it isn't played twice in a row, as the game tries to open the same DDV file multiple times (resulting in a crash)
+        /// The last time we launched a cutscene, so it isn't played twice in a row, as the game tries to open the same DDV file multiple times (resulting in a crash)
         /// </summary>
         private static DateTime _lastvidFilePlayTime = DateTime.MinValue;
         static CutsceneLauncher()
