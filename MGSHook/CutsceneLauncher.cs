@@ -90,10 +90,7 @@ namespace MGSHook
                     {
                         lastvid = wmvfilename;
 
-                        //Puts the game's window in the Taskbar, to avoid the game's brightness setting to be at 0 when we get back (?!)
-                        NativeMethods.ShowWindow(Process.GetCurrentProcess().MainWindowHandle, NativeMethods.SW_MINIMIZE);
-
-                        //Starting it in a thread avoids a crash of the game
+                        //In a thread so the game can continue once playback is finished
                         Task.Factory.StartNew(() =>
                         {
                             try
