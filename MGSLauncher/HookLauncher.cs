@@ -31,11 +31,10 @@ namespace MGSLauncher
             RemoteHooking.CreateAndInject(_targetExe, "", 0, InjectionOptions.DoNotRequireStrongName, injectionLibrary, injectionLibrary, out targetPid, ChannelName);
 
             var gameProcess = Process.GetProcessById(targetPid);
-            return gameProcess;
-
-#if(DEBUG)
+#if (DEBUG)
             Debug.WriteLine(String.Format("Metal Gear Solid launched and injected successfully. PID : {0}", targetPid));
 #endif
+            return gameProcess;
         }
     }
 }

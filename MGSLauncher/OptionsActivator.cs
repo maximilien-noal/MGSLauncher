@@ -21,15 +21,6 @@ namespace MGSLauncher
             {
                 DisableDgVoodoo2();
             }
-
-            if(Properties.Settings.Default.IsSweetFXActivated)
-            {
-                EnableSweetFX();
-            }
-            else
-            {
-                DisableSweetFX();
-            }
         }
 
         private static void EnableDgVoodoo2()
@@ -116,7 +107,7 @@ namespace MGSLauncher
             }
         }
 
-        private static void EnableSweetFX()
+        private static void EnableReshade()
         {
             try
             {
@@ -128,7 +119,7 @@ namespace MGSLauncher
             }
         }
 
-        private static void DisableSweetFX()
+        private static void DisableReshade()
         {
             try
             {
