@@ -74,37 +74,40 @@ namespace MGSHook
             {
                 return;
             }
-            
-            if (filename.ToLower().Contains("movie") && Path.GetExtension(filename.ToLower()) == ".ddv")
+
+            if ((filename.ToLower().Contains("movie") && Path.GetExtension(filename.ToLower()) == ".ddv") == false)
             {
-                string wmvfilename = TransformDDVPathToWMVPath(filename);
-
-                if (File.Exists(wmvfilename) == false)
-                {
-                    return;
-                }
-
-                TimeSpan timeDifference = DateTime.Now.Subtract(_lastvidFilePlayTime);
-
-                //Refusing to open the same video twice or more in a row avoids a crash.
-                if (timeDifference.Seconds >= 20)
-                {
-                    _lastvidFilePlayTime = DateTime.Now;
-
-                    //In a thread, so the game can continue once playback is finished
-                    Task.Factory.StartNew(() =>
-                    {
-                        try
-                        {
-                            PlayVideo(wmvfilename, Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle);
-                        }
-                        catch (Win32Exception e)
-                        {
-                            MessageBox.Show(e.Message);
-                        }
-                    });
-                }
+                return;
             }
+            
+            //Refusing to open the same video twice or more in a row avoids a crash.
+            if (DateTime.Now.Subtract(_lastvidFilePlayTime).Seconds <= 20)
+            {
+                return;
+            }
+
+
+            _lastvidFilePlayTime = DateTime.Now;
+
+            string wmvfilename = TransformDDVPathToWMVPath(filename);
+
+            if (File.Exists(wmvfilename) == false)
+            {
+                return;
+            }
+
+            //In a thread, so the game can continue once playback is finished
+            Task.Factory.StartNew(() =>
+            {
+                try
+                {
+                    PlayVideo(wmvfilename, Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle);
+                }
+                catch (Win32Exception e)
+                {
+                    MessageBox.Show(e.Message);
+                }
+            });
         }
 
         /// <summary>
