@@ -15,7 +15,10 @@ namespace MGSHook
         private IpcInterface _ipcInterface;
         private static IntPtr cutsceneDllPointer;
         private static string _runningDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-
+        /// <summary>
+        /// The last time we launch a cutscene, so it isn't played twice in a row, as the game tries to open the same DDV file multiple times (resulting in a crash)
+        /// </summary>
+        private static DateTime _lastvidFilePlayTime = DateTime.MinValue;
         static CutsceneLauncher()
         {
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
@@ -62,11 +65,6 @@ namespace MGSHook
         }
 
         /// <summary>
-        /// The absolute path to the last played WMV file, so it isn't played twice in a row.
-        /// </summary>
-        private static string lastvid = "";
-
-        /// <summary>
         /// Tries to start a video playback. Displays the native exception if it can catch it
         /// </summary>
         /// <param name="filename">The absolute file path to the WMV file</param>
@@ -79,32 +77,48 @@ namespace MGSHook
             
             if (filename.ToLower().Contains("movie") && Path.GetExtension(filename.ToLower()) == ".ddv")
             {
-                string wmvfilename = filename.ToLower();
-                wmvfilename = Path.GetFileNameWithoutExtension(wmvfilename);
-                wmvfilename += ".wmv";
-                wmvfilename = Path.Combine(_runningDirectory, "movie", wmvfilename);
+                string wmvfilename = TransformDDVPathToWMVPath(filename);
 
-                if (File.Exists(wmvfilename))
+                if (File.Exists(wmvfilename) == false)
                 {
-                    if(lastvid != wmvfilename)
-                    {
-                        lastvid = wmvfilename;
+                    return;
+                }
 
-                        //In a thread so the game can continue once playback is finished
-                        Task.Factory.StartNew(() =>
+                TimeSpan timeDifference = DateTime.Now.Subtract(_lastvidFilePlayTime);
+
+                //Refusing to open the same video twice or more in a row avoids a crash.
+                if (timeDifference.Seconds >= 20)
+                {
+                    _lastvidFilePlayTime = DateTime.Now;
+
+                    //In a thread, so the game can continue once playback is finished
+                    Task.Factory.StartNew(() =>
+                    {
+                        try
                         {
-                            try
-                            {
-                                PlayVideo(wmvfilename, Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle);
-                            }
-                            catch(Win32Exception e)
-                            {
-                                MessageBox.Show(e.Message);
-                            }
-                        });
-                    }
+                            PlayVideo(wmvfilename, Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle);
+                        }
+                        catch (Win32Exception e)
+                        {
+                            MessageBox.Show(e.Message);
+                        }
+                    });
                 }
             }
+        }
+
+        /// <summary>
+        /// Gives the absolute path to the corresponding WMV file
+        /// </summary>
+        /// <param name="ddvFile">the absolute path to the DDV file</param>
+        /// <returns></returns>
+        private static string TransformDDVPathToWMVPath(string ddvFile)
+        {
+            string wmvfilename = ddvFile.ToLower();
+            wmvfilename = Path.GetFileNameWithoutExtension(wmvfilename);
+            wmvfilename += ".wmv";
+            wmvfilename = Path.Combine(_runningDirectory, "movie", wmvfilename);
+            return wmvfilename;
         }
 
         [UnmanagedFunctionPointer(CallingConvention.StdCall, SetLastError = true, CharSet = CharSet.Ansi)]
