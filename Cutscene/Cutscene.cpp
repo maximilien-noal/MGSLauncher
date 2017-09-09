@@ -218,6 +218,8 @@ HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND window)
 	//Invoking our OnPaint() handler does this.
 	OnPaint();
 
+	ShowCursor(false);
+
 	m_pPlayer->Play();
 
 	while (m_pPlayer->State() == STATE_RUNNING)
