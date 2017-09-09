@@ -6,6 +6,9 @@ namespace MGSLauncher
 {
     public partial class MainWindow : Window
     {
+        /// <summary>
+        /// Should have made an InvertBooleanToVisibilityConverter... it would have been about the same amount of code, however.
+        /// </summary>
         public bool AreOptionsNotVisible
         {
             get { return (bool)GetValue(AreOptionsNotVisibleProperty); }
@@ -100,7 +103,9 @@ namespace MGSLauncher
 
                 if (IsVideoFixActivated)
                 {
-                    HookLauncher.Run(executable);
+                    var gameProcess = HookLauncher.Run(executable);
+                    gameProcess.EnableRaisingEvents = true;
+                    gameProcess.Exited += OnGameExit;
                     this.WindowState = WindowState.Minimized;
                 }
                 else
@@ -108,14 +113,11 @@ namespace MGSLauncher
                     var psInfo = new ProcessStartInfo(executable);
                     var gameProcess = new Process();
                     gameProcess.StartInfo = psInfo;
-                    gameProcess.EnableRaisingEvents = true;
 
                     if (gameProcess.Start())
                     {
-                        gameProcess.Exited += OnGameExit;
+                        Application.Current.Shutdown();
                     }
-                    Process.Start(executable);
-                    Application.Current.Shutdown();
                 }
             }
             catch (Exception e)
@@ -127,7 +129,11 @@ namespace MGSLauncher
 
         private void OnGameExit(object sender, EventArgs e)
         {
-            Application.Current.Shutdown();
+            //Avoid AccessViolationException (because the caller (game) lives in another thread, certainly)
+            Application.Current.Dispatcher.Invoke((Action)delegate
+            {
+                Application.Current.Shutdown();
+            });
         }
 
         private void ShowOptions_Execute(object parameters)

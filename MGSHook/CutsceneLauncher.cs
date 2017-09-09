@@ -90,7 +90,7 @@ namespace MGSHook
                     {
                         lastvid = wmvfilename;
 
-                        //Puts the game's window in the Taskbar
+                        //Puts the game's window in the Taskbar, to avoid the game's lightning to be out of whack when we get back (?!)
                         NativeMethods.ShowWindow(Process.GetCurrentProcess().MainWindowHandle, NativeMethods.SW_MINIMIZE);
 
                         //Starting it in a thread avoids a crash of the game
