@@ -8,7 +8,6 @@ namespace MGSLauncher
     internal static class OptionsActivator
     {
         private static string _gameDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-        private static string[] movieFiles = { "POLICE.DDV", "KASOU.DDV", "KAITAI.DDV", "GENBAKU.DDV", "WANGAN.DDV", "INUZORI.DDV", "IDENSHI.DDV", "E399.DDV", "ALASKA.DDV" };
 
         public static void ApplyOptions()
         {
@@ -44,12 +43,17 @@ namespace MGSLauncher
         {
             try
             {
-                foreach (string file in Directory.GetFiles(Path.Combine(_gameDir, "movie")))
+                var movieFiles = Directory.GetFiles(Path.Combine(_gameDir, "movie"), "*.ddv");
+
+                if (movieFiles == null)
                 {
-                    if (movieFiles.Any(x => file.ToLower() == x.ToLower()))
-                    {
-                        File.Move(file, Path.Combine(_gameDir, file));
-                    }
+                    return;
+                }
+
+                foreach(string file in movieFiles)
+                {
+                    string destPath = Path.Combine(_gameDir, Path.GetFileName(file));
+                    File.Move(file, destPath);
                 }
             }
             catch (Exception e)
@@ -62,13 +66,17 @@ namespace MGSLauncher
         {
             try
             {
-                foreach (string file in Directory.GetFiles(_gameDir))
+                var movieFiles = Directory.GetFiles(_gameDir, "*.ddv");
+
+                if (movieFiles == null)
                 {
-                    if (movieFiles.Any(x => file.ToLower() == x.ToLower()))
-                    {
-                        string destDir = Path.Combine(_gameDir, "movie");
-                        File.Move(file, Path.Combine(destDir, file));
-                    }
+                    return;
+                }
+
+                foreach (string file in movieFiles)
+                {
+                    string destPath = Path.Combine(_gameDir, "movie", Path.GetFileName(file));
+                    File.Move(file, destPath);
                 }
             }
             catch (Exception e)
