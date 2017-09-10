@@ -21,6 +21,15 @@ namespace MGSLauncher
             {
                 DisableDgVoodoo2();
             }
+
+            if (Properties.Settings.Default.IsSweetFXActivated)
+            {
+                EnableSweetFX();
+            }
+            else
+            {
+                DisableSweetFX();
+            }
         }
 
         private static void EnableDgVoodoo2()
@@ -107,11 +116,21 @@ namespace MGSLauncher
             }
         }
 
-        private static void EnableReshade()
+        private static void EnableSweetFX()
         {
             try
             {
+                string dxgiSavePath = Path.Combine(_gameDir, @"SweetFX\dxgi.dll");
+                string dxgiDestPath = Path.Combine(_gameDir, "dxgi.dll");
 
+                if(File.Exists(dxgiSavePath))
+                {
+                    if (File.Exists(dxgiDestPath))
+                    {
+                        File.Delete(dxgiDestPath);
+                    }
+                    File.Move(dxgiSavePath, dxgiDestPath);
+                }
             }
             catch (Exception e)
             {
@@ -119,11 +138,22 @@ namespace MGSLauncher
             }
         }
 
-        private static void DisableReshade()
+        private static void DisableSweetFX()
         {
             try
             {
+                string dxgiSavePath = Path.Combine(_gameDir, @"SweetFX\dxgi.dll");
+                string dxgiSourcePath = Path.Combine(_gameDir, "dxgi.dll");
+                
 
+                if (File.Exists(dxgiSourcePath))
+                {
+                    if (File.Exists(dxgiSavePath))
+                    {
+                        File.Delete(dxgiSavePath);
+                    }
+                    File.Move(dxgiSourcePath, dxgiSavePath);
+                }
             }
             catch (Exception e)
             {

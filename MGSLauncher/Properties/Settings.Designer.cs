@@ -46,5 +46,17 @@ namespace MGSLauncher.Properties {
                 this["IsVideoFixActivated"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool IsSweetFXActivated {
+            get {
+                return ((bool)(this["IsSweetFXActivated"]));
+            }
+            set {
+                this["IsSweetFXActivated"] = value;
+            }
+        }
     }
 }

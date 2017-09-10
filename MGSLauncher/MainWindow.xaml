@@ -23,6 +23,7 @@
         <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,41,40" TextBlock.FontFamily="Sans" Visibility="{Binding AreOptionsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
             <CheckBox Name="DgVoodoo2CheckBox" IsChecked="{Binding IsDgVoodoo2Activated}" Content="dgVoodoo 2" ToolTip="À désactiver en cas de problème" Foreground="White" Width="113" Height="18" Background="Transparent" BorderBrush="Transparent" Margin="0,0,0,47"/>
             <CheckBox Name="VideoCheckBox" IsChecked="{Binding IsVideoFixActivated}" Content="Correction vidéos" ToolTip="À désactiver en cas de problème" Foreground="White" Width="113" Height="18" Background="Transparent" BorderBrush="Transparent" Margin="0,0,0,44" />
+            <CheckBox Name="SweetFXCheckBox" IsChecked="{Binding IsSweetFXActivated}" Content="Utiliser SweetFX" ToolTip="À désactiver en cas de problème" Foreground="White" Width="113" Height="18" Background="Transparent" BorderBrush="Transparent" />
         </StackPanel>
     </Grid>
 </Window>
