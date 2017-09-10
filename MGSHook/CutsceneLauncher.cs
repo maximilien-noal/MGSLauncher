@@ -96,6 +96,9 @@ namespace MGSHook
                 return;
             }
 
+            //Puts the game's window in the Taskbar, to avoid the game's brightness setting to be at 0 when we get back (?!)
+            NativeMethods.ShowWindow(Process.GetCurrentProcess().MainWindowHandle, NativeMethods.SW_MINIMIZE);
+
             //In a thread, so the game can continue once playback is finished
             Task.Factory.StartNew(() =>
             {

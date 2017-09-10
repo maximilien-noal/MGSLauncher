@@ -102,6 +102,7 @@ namespace MGSLauncher
                     gameProcess.EnableRaisingEvents = true;
                     gameProcess.Exited += OnGameExit;
                     this.WindowState = WindowState.Minimized;
+                    this.Visibility = Visibility.Collapsed;
                 }
                 else
                 {
@@ -117,6 +118,7 @@ namespace MGSLauncher
             }
             catch (Exception e)
             {
+                this.Visibility = Visibility.Visible;
                 this.WindowState = WindowState.Normal;
                 MessageBox.Show(String.Format("{0}:{1}{2}", e.Message, Environment.NewLine, e.StackTrace), "Error on game launch");
             }

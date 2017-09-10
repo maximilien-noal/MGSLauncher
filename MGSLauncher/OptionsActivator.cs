@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Windows;
 
 namespace MGSLauncher
@@ -7,10 +8,20 @@ namespace MGSLauncher
     internal static class OptionsActivator
     {
         private static string _gameDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+        private static string[] movieFiles = { "POLICE.DDV", "KASOU.DDV", "KAITAI.DDV", "GENBAKU.DDV", "WANGAN.DDV", "INUZORI.DDV", "IDENSHI.DDV", "E399.DDV", "ALASKA.DDV" };
 
         public static void ApplyOptions()
         {
-            if(Properties.Settings.Default.IsDgVoodoo2Activated)
+            if(Properties.Settings.Default.IsVideoFixActivated)
+            {
+                RemoveDDVMovies();
+            }
+            else
+            {
+                RestoreDDVMovies();
+            }
+
+            if (Properties.Settings.Default.IsDgVoodoo2Activated)
             {
                 EnableDgVoodoo2();
             }
@@ -26,6 +37,43 @@ namespace MGSLauncher
             else
             {
                 DisableReShade();
+            }
+        }
+
+        private static void RemoveDDVMovies()
+        {
+            try
+            {
+                foreach (string file in Directory.GetFiles(Path.Combine(_gameDir, "movie")))
+                {
+                    if (movieFiles.Any(x => file.ToLower() == x.ToLower()))
+                    {
+                        File.Move(file, Path.Combine(_gameDir, file));
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show(String.Format("{0}:{1}{2}", e.Message, Environment.NewLine, e.StackTrace), "Error enabling dgVoodoo2");
+            }
+        }
+
+        private static void RestoreDDVMovies()
+        {
+            try
+            {
+                foreach (string file in Directory.GetFiles(_gameDir))
+                {
+                    if (movieFiles.Any(x => file.ToLower() == x.ToLower()))
+                    {
+                        string destDir = Path.Combine(_gameDir, "movie");
+                        File.Move(file, Path.Combine(destDir, file));
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show(String.Format("{0}:{1}{2}", e.Message, Environment.NewLine, e.StackTrace), "Error enabling dgVoodoo2");
             }
         }
 

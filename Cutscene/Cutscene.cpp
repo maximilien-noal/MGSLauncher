@@ -167,15 +167,11 @@ BOOL CreateChildWindow(HINSTANCE hInstance, TCHAR *szFile)
 	wc.lpszClassName = L"MGSVideoWindow";
 	RegisterClass(&wc);
 
-	// Find the client area of the application.
-	RECT rcWindow;
-	GetClientRect(gameWindow, &rcWindow);
-
 	// Create a window that will display the video and react to user input
 	videoWindow = CreateWindowEx(WS_EX_NOACTIVATE,
 		L"MGSVideoWindow", L"MGSCutsceneWindow",
 		WS_POPUP | WS_VISIBLE | WS_MAXIMIZE,
-		0, 0, rcWindow.right, rcWindow.bottom,
+		0, 0, 0, 0,
 		NULL, NULL, hInstance, NULL);
 
 	return (videoWindow != NULL);
