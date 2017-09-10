@@ -1,0 +1,96 @@
+﻿<Window x:Class="MGSLauncher.DefaultControlsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" ResizeMode="NoResize"
+        xmlns:local="clr-namespace:MGSLauncher" MinWidth="640" MinHeight="480" WindowStartupLocation="CenterOwner"
+        mc:Ignorable="d" SizeToContent="WidthAndHeight" WindowStyle="SingleBorderWindow"
+        Name="DefaultControlsView" Height="300" Width="300" Title="Contrôles par défaut"
+        TextBlock.FontSize="17">
+    <Grid>
+        <TabControl>
+            <TabItem Header="Clavier">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Orientation="Vertical" Grid.Column="0">
+                        <TextBlock Text="4 / 6 / 8 / 2 (pavé numérique) : " />
+                        <TextBlock Text="Shift :" />
+                        <TextBlock Text="X :" />
+                        <TextBlock Text="Tab :" />
+                        <TextBlock Text="Échap :" />
+                        <TextBlock Text="A :" />
+                        <TextBlock Text="S :" />
+                        <TextBlock Text="Espace :" />
+                        <TextBlock Text="Ctrl :" />
+                        <TextBlock Text="Q :" />
+                        <TextBlock Text="W :" />
+                    </StackPanel>
+                    
+                    <StackPanel Orientation="Vertical" Grid.Column="1">
+                        <TextBlock Text="Se déplacer" />
+                        <TextBlock Text="Ramper" />
+                        <TextBlock Text="Vue subjective" />
+                        <TextBlock Text="Codec" />
+                        <TextBlock Text="Menu / Pause / Passer outre la cinématique" />
+                        <TextBlock Text="Inventaire objets" />
+                        <TextBlock Text="Inventaire armes" />
+                        <TextBlock Text="Attaque au corps à corps" />
+                        <TextBlock Text="Tirer avec l'arme / Prise au corps à corps" />
+                        <TextBlock Text="Utiliser ou arrêt d'utiliser l'objet sélectionné" />
+                        <TextBlock Text="Sortir ou ranger l'arme sélectionnée" />
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Manette">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Vertical" Grid.Row="0" Grid.ColumnSpan="2">
+                        <TextBlock Text="Exemple avec une manette Xbox 360 :" />
+                        <Rectangle Fill="Black"  Height="2" />
+                    </StackPanel>
+
+                    <StackPanel Orientation="Vertical" Margin="10,10,0,0" Grid.Column="0" Grid.Row="1">
+                        <TextBlock Text="Pad directionnel : " />
+                        <TextBlock Text="Appui sur pad directionnel :" />
+                        <TextBlock Text="Appui sur pad secondaire :" />
+                        <TextBlock Text="Back :" />
+                        <TextBlock Text="Start :" />
+                        <TextBlock Text="LB :" />
+                        <TextBlock Text="RB :" />
+                        <TextBlock Text="A :" />
+                        <TextBlock Text="B :" />
+                        <TextBlock Text="X :" />
+                        <TextBlock Text="Y :" />
+                    </StackPanel>
+
+                    <StackPanel Orientation="Vertical" Margin="10,10,0,0" Grid.Column="1" Grid.Row="1">
+                        <TextBlock Text="Se déplacer" />
+                        <TextBlock Text="Ramper" />
+                        <TextBlock Text="Vue subjective" />
+                        <TextBlock Text="Codec" />
+                        <TextBlock Text="Menu / Pause / Passer outre la cinématique" />
+                        <TextBlock Text="Inventaire objets" />
+                        <TextBlock Text="Inventaire armes" />
+                        <TextBlock Text="Attaque au corps à corps" />
+                        <TextBlock Text="Tirer avec l'arme / Prise au corps à corps" />
+                        <TextBlock Text="Utiliser ou arrêt d'utiliser l'objet sélectionné" />
+                        <TextBlock Text="Sortir ou ranger l'arme sélectionnée" />
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>

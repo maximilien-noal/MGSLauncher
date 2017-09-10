@@ -51,15 +51,15 @@ namespace MGSLauncher
 
         public DelegateCommand Play { get; private set; }
         public DelegateCommand PlayVR { get; private set; }
-        public DelegateCommand Quit { get; private set; }
         public DelegateCommand ShowOptions { get; private set; }
+        public DelegateCommand SeeDefaultCommands { get; private set; }
 
         public MainWindow()
         {
             Play = new DelegateCommand(Play_Execute);
             PlayVR = new DelegateCommand(PlayVR_Execute);
-            Quit = new DelegateCommand(Quit_Execute);
             ShowOptions = new DelegateCommand(ShowOptions_Execute);
+            SeeDefaultCommands = new DelegateCommand(SeeDefaultCommands_Execute);
 
             InitializeComponent();
 
@@ -77,11 +77,6 @@ namespace MGSLauncher
             Properties.Settings.Default.IsVideoFixActivated = IsVideoFixActivated;
             Properties.Settings.Default.IsSweetFXActivated = IsSweetFXActivated;
             Properties.Settings.Default.Save();
-        }
-
-        private void Quit_Execute(object parameters)
-        {
-            Application.Current.Shutdown();
         }
 
         private void PlayVR_Execute(object parameters)
@@ -148,6 +143,13 @@ namespace MGSLauncher
                 SetCurrentValue(AreOptionsVisibleProperty, false);
                 SetCurrentValue(AreOptionsNotVisibleProperty, true);
             }
+        }
+
+        private void SeeDefaultCommands_Execute(object parameters)
+        {
+            DefaultControlsWindow defaultControlsWindow = new DefaultControlsWindow();
+            defaultControlsWindow.Owner = this;
+            defaultControlsWindow.ShowDialog();
         }
     }
 }
