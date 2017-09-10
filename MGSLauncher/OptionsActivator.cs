@@ -52,8 +52,22 @@ namespace MGSLauncher
 
                 foreach(string file in movieFiles)
                 {
-                    string destPath = Path.Combine(_gameDir, Path.GetFileName(file));
-                    File.Move(file, destPath);
+                    try
+                    {
+                        string destPath = Path.Combine(_gameDir, Path.GetFileName(file));
+
+                        if (File.Exists(destPath))
+                        {
+                            File.Delete(destPath);
+                        }
+
+                        File.Move(file, destPath);
+                    }
+                    catch
+                    {
+
+                    }
+                    
                 }
             }
             catch (Exception e)
@@ -75,8 +89,22 @@ namespace MGSLauncher
 
                 foreach (string file in movieFiles)
                 {
-                    string destPath = Path.Combine(_gameDir, "movie", Path.GetFileName(file));
-                    File.Move(file, destPath);
+                    try
+                    {
+                        string destPath = Path.Combine(_gameDir, "movie", Path.GetFileName(file));
+
+                        if (File.Exists(destPath))
+                        {
+                            continue;
+                        }
+
+                        File.Move(file, destPath);
+                    }
+                    catch
+                    {
+
+                    }
+                    
                 }
             }
             catch (Exception e)
