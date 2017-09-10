@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.IO;
 using System.Windows;
 
@@ -22,13 +19,13 @@ namespace MGSLauncher
                 DisableDgVoodoo2();
             }
 
-            if (Properties.Settings.Default.IsSweetFXActivated)
+            if (Properties.Settings.Default.IsReShadeActivated)
             {
-                EnableSweetFX();
+                EnableReShade();
             }
             else
             {
-                DisableSweetFX();
+                DisableReShade();
             }
         }
 
@@ -116,11 +113,11 @@ namespace MGSLauncher
             }
         }
 
-        private static void EnableSweetFX()
+        private static void EnableReShade()
         {
             try
             {
-                string dxgiSavePath = Path.Combine(_gameDir, @"SweetFX\dxgi.dll");
+                string dxgiSavePath = Path.Combine(_gameDir, @"reshade-shaders\dxgi.dll");
                 string dxgiDestPath = Path.Combine(_gameDir, "dxgi.dll");
 
                 if(File.Exists(dxgiSavePath))
@@ -134,15 +131,15 @@ namespace MGSLauncher
             }
             catch (Exception e)
             {
-                MessageBox.Show(String.Format("{0}:{1}{2}", e.Message, Environment.NewLine, e.StackTrace), "Error enabling SweetFX");
+                MessageBox.Show(String.Format("{0}:{1}{2}", e.Message, Environment.NewLine, e.StackTrace), "Error enabling ReShade");
             }
         }
 
-        private static void DisableSweetFX()
+        private static void DisableReShade()
         {
             try
             {
-                string dxgiSavePath = Path.Combine(_gameDir, @"SweetFX\dxgi.dll");
+                string dxgiSavePath = Path.Combine(_gameDir, @"reshade-shaders\dxgi.dll");
                 string dxgiSourcePath = Path.Combine(_gameDir, "dxgi.dll");
                 
 
@@ -157,7 +154,7 @@ namespace MGSLauncher
             }
             catch (Exception e)
             {
-                MessageBox.Show(String.Format("{0}:{1}{2}", e.Message, Environment.NewLine, e.StackTrace), "Error disabling SweetFX");
+                MessageBox.Show(String.Format("{0}:{1}{2}", e.Message, Environment.NewLine, e.StackTrace), "Error disabling ReShade");
             }
         }
     }

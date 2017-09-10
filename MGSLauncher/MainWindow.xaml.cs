@@ -41,13 +41,13 @@ namespace MGSLauncher
         public static readonly DependencyProperty IsVideoFixActivatedProperty =
             DependencyProperty.Register("IsVideoFixActivated", typeof(bool), typeof(MainWindow), new PropertyMetadata(Properties.Settings.Default.IsVideoFixActivated));
 
-        public bool IsSweetFXActivated
+        public bool IsReShadeActivated
         {
-            get { return (bool)GetValue(IsSweetFXActivatedProperty); }
-            set { SetValue(IsSweetFXActivatedProperty, value); }
+            get { return (bool)GetValue(IsReShadeActivatedProperty); }
+            set { SetValue(IsReShadeActivatedProperty, value); }
         }
-        public static readonly DependencyProperty IsSweetFXActivatedProperty =
-            DependencyProperty.Register("IsSweetFXActivated", typeof(bool), typeof(MainWindow), new PropertyMetadata(Properties.Settings.Default.IsSweetFXActivated));
+        public static readonly DependencyProperty IsReShadeActivatedProperty =
+            DependencyProperty.Register("IsReShadeActivated", typeof(bool), typeof(MainWindow), new PropertyMetadata(Properties.Settings.Default.IsReShadeActivated));
 
         public DelegateCommand Play { get; private set; }
         public DelegateCommand PlayVR { get; private set; }
@@ -75,7 +75,7 @@ namespace MGSLauncher
         {
             Properties.Settings.Default.IsDgVoodoo2Activated = IsDgVoodoo2Activated;
             Properties.Settings.Default.IsVideoFixActivated = IsVideoFixActivated;
-            Properties.Settings.Default.IsSweetFXActivated = IsSweetFXActivated;
+            Properties.Settings.Default.IsReShadeActivated = IsReShadeActivated;
             Properties.Settings.Default.Save();
         }
 

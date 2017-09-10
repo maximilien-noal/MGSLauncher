@@ -50,12 +50,12 @@ namespace MGSLauncher.Properties {
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("True")]
-        public bool IsSweetFXActivated {
+        public bool IsReShadeActivated {
             get {
-                return ((bool)(this["IsSweetFXActivated"]));
+                return ((bool)(this["IsReShadeActivated"]));
             }
             set {
-                this["IsSweetFXActivated"] = value;
+                this["IsReShadeActivated"] = value;
             }
         }
     }
