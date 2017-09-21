@@ -34,8 +34,7 @@ namespace MGSHook
 
         private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
-            var ex = e.ExceptionObject as Exception;
-            if(ex != null)
+            if (e.ExceptionObject is Exception ex)
             {
                 MessageBox.Show(ex.Message, ex.Source);
             }
@@ -96,21 +95,14 @@ namespace MGSHook
                 return;
             }
 
-            //Puts the game's window in the Taskbar, to avoid the game's brightness setting to be at 0 when we get back (?!)
-            NativeMethods.ShowWindow(Process.GetCurrentProcess().MainWindowHandle, NativeMethods.SW_MINIMIZE);
-
-            //In a thread, so the game can continue once playback is finished
-            Task.Factory.StartNew(() =>
+            try
             {
-                try
-                {
-                    PlayVideo(wmvfilename, Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle);
-                }
-                catch (Exception e)
-                {
-                    MessageBox.Show(e.Message);
-                }
-            });
+                PlayVideo(wmvfilename, Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle);
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show(e.Message);
+            }
         }
 
         /// <summary>

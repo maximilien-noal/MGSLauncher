@@ -178,7 +178,6 @@ void ErrorExit(LPTSTR lpszFunction)
 void UnSubClass(HWND window)
 {
 	RemoveWindowSubclass(window, CutsceneWndProc, uIdSubclass);
-	
 
 	//Invalidate the window so that the WM_PAINT message is sent, allowing it to redraw itself once the video has passed
 	RECT rc;
@@ -224,18 +223,10 @@ HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND window)
 	{
 		// Check and process window messages (like WM_KEYDOWN)
 		MSG msg;
-		BOOL bRet;
-		while (bRet = (GetMessage(&msg, gameWindow, 0, 0)) != 0)
+		while (GetMessage(&msg, gameWindow, 0, 0))
 		{
-			if (bRet == -1)
-			{
-				goto CLEANUP;
-			}
-			else
-			{
-				TranslateMessage(&msg);
-				DispatchMessage(&msg);
-			}
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
 		}
 	}
 
