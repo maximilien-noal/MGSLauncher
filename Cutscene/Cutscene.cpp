@@ -216,9 +216,7 @@ HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND window)
 	// Invoking our OnSize() handler does this.
 	OnSize();
 
-	//We need to paint the video stream for the first time.
-	//Invoking our OnPaint() handler does this.
-	OnPaint();
+	ShowCursor(false);
 
 	m_pPlayer->Play();
 

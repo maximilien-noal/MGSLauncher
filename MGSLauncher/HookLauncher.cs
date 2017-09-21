@@ -17,30 +17,24 @@ namespace MGSLauncher
         private static string _targetExe = "";
         private static String ChannelName;
 
-        public static void Run(string exeName)
+        public static Process Run(string exeName)
         {
-
             _targetExe = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), exeName);
             Int32 targetPid = 0;
-            try
+            if (!File.Exists(_targetExe))
             {
-                if (!File.Exists(_targetExe))
-                {
-                    Debug.WriteLine(String.Format("{0} introuvable !", _targetExe));
-                    Debug.WriteLine("Appuyez sur une touche pour quitter... ");
-                }
-
-                RemoteHooking.IpcCreateServer<IpcInterface>(ref ChannelName, WellKnownObjectMode.SingleCall);
-                string injectionLibrary = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "MGSHook.dll");
-                RemoteHooking.CreateAndInject(_targetExe, "", 0, InjectionOptions.DoNotRequireStrongName, injectionLibrary, injectionLibrary, out targetPid, ChannelName);
-                Debug.WriteLine(String.Format("Metal Gear Solid lancé avec succès. PID : {0}", targetPid));
-            }
-            catch (Exception exception)
-            {
-                Debug.WriteLine("Erreur grave apparue lors du lancement de Metal Gear Solid \r\n{0}", exception.ToString());
-                Debug.WriteLine("Appuyez sur une touche pour quitter... ");
+                throw new FileNotFoundException(_targetExe);
             }
 
+            RemoteHooking.IpcCreateServer<IpcInterface>(ref ChannelName, WellKnownObjectMode.SingleCall);
+            string injectionLibrary = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "MGSHook.dll");
+            RemoteHooking.CreateAndInject(_targetExe, "", 0, InjectionOptions.DoNotRequireStrongName, injectionLibrary, injectionLibrary, out targetPid, ChannelName);
+
+            var gameProcess = Process.GetProcessById(targetPid);
+#if (DEBUG)
+            Debug.WriteLine(String.Format("Metal Gear Solid launched and injected successfully. PID : {0}", targetPid));
+#endif
+            return gameProcess;
         }
     }
 }
