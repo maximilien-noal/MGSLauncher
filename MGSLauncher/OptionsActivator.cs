@@ -19,7 +19,7 @@ namespace MGSLauncher
             {
                 RestoreDDVMovies();
             }
-
+            /*
             if (Properties.Settings.Default.IsDgVoodoo2Activated)
             {
                 EnableDgVoodoo2();
@@ -37,6 +37,8 @@ namespace MGSLauncher
             {
                 DisableReShade();
             }
+            */
+
         }
 
         private static void RemoveDDVMovies()
