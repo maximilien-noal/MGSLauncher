@@ -95,14 +95,17 @@ namespace MGSHook
                 return;
             }
 
-            try
+            Task.Factory.StartNew(() =>
             {
-                PlayVideo(wmvfilename, Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle);
-            }
-            catch (Exception e)
-            {
-                MessageBox.Show(e.Message);
-            }
+                try
+                {
+                    PlayVideo(wmvfilename, Process.GetCurrentProcess().Handle, Process.GetCurrentProcess().MainWindowHandle);
+                }
+                catch (Exception e)
+                {
+                    MessageBox.Show(e.Message);
+                }
+            });
         }
 
         /// <summary>

@@ -215,19 +215,15 @@ HRESULT PlayVideo(LPTSTR szMovie, HINSTANCE processHandle, HWND window)
 	// Invoking our OnSize() handler does this.
 	OnSize();
 
-	ShowCursor(false);
-
 	m_pPlayer->Play();
 
 	while (m_pPlayer->State() == STATE_RUNNING)
 	{
 		// Check and process window messages (like WM_KEYDOWN)
 		MSG msg;
-		while (GetMessage(&msg, gameWindow, 0, 0))
-		{
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
-		}
+		GetMessage(&msg, gameWindow, 0, 0);
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
 	}
 
 CLEANUP:
