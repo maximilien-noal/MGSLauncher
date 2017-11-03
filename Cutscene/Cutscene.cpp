@@ -54,7 +54,7 @@ void OnPaint()
 	if (m_pPlayer != NULL && m_pPlayer->State() != STATE_CLOSED && m_pPlayer->HasVideo())
 	{
 		// The player has video, so ask the player to repaint. 
-		m_pPlayer->Repaint(hdc);
+		m_pPlayer->RepaintVideo();
 	}
 
 	EndPaint(gameWindow, &ps);
@@ -113,7 +113,6 @@ LRESULT CALLBACK CutsceneWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 		break;
 
 	case WM_DISPLAYCHANGE:
-		m_pPlayer->DisplayModeChanged();
 		break;
 
 	case WM_ERASEBKGND:

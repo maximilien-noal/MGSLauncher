@@ -33,7 +33,7 @@
     <ClInclude Include="DShowPlayer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="video.h">
+    <ClInclude Include="EVRPlayer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -48,9 +48,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="DShowPlayer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="video.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

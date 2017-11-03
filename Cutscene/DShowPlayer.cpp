@@ -10,8 +10,19 @@
 //
 //////////////////////////////////////////////////////////////////////////
 #include "stdafx.h"
-#include "DShowPlayer.h"
-#include "common\dshowutil.h"
+#include "EVRPlayer.h"
+#include "common/dshowutil.h"
+
+struct EVRSetupInfo
+{
+    HWND    hwndVideo;
+    DWORD   dwStreams;
+    GUID    clsidPresenter;    
+    GUID    clsidMixer;
+};
+
+HRESULT RemoveUnconnectedRenderer(IGraphBuilder *pGraph, IBaseFilter *pRenderer, BOOL *pbRemoved);
+HRESULT InitializeEVR(IBaseFilter *pEVR, const EVRSetupInfo& info, IMFVideoDisplayControl **ppDisplay);
 
 //-----------------------------------------------------------------------------
 // DShowPlayer constructor.
@@ -26,13 +37,15 @@ DShowPlayer::DShowPlayer(HWND hwndVideo) :
 	m_pControl(NULL),
 	m_pEvent(NULL),
 	m_pSeek(NULL),
-	m_pAudio(NULL),
-	m_pVideo(NULL),
+    m_pDisplay(NULL),
+    m_pEVR(NULL),
+    m_pMixer(NULL),
+    m_pBitmap(NULL),
+    m_pMapper(NULL),
 	m_seekCaps(0),
-	m_bMute(FALSE),
-	m_lVolume(MAX_VOLUME)
+    m_fScale(1.0f),
+    m_clsidPresenter(GUID_NULL)
 {
-
 
 }
 
@@ -52,8 +65,8 @@ DShowPlayer::~DShowPlayer()
 // Description: Set the window to receive graph events.
 //
 // hwnd: Window to receive the events.
-// msg: Private window message that window will receive whenever a 
-//      graph event occurs. (Must be in the range WM_APP through 0xBFFF.)
+// msg: Private window message. The window will receive this message whenever  
+//      a graph event occurs. (Must be in the range WM_APP through 0xBFFF.)
 //-----------------------------------------------------------------------------
 
 HRESULT DShowPlayer::SetEventWindow(HWND hwnd, UINT msg)
@@ -64,56 +77,45 @@ HRESULT DShowPlayer::SetEventWindow(HWND hwnd, UINT msg)
 }
 
 
+
 //-----------------------------------------------------------------------------
 // DShowPlayer::OpenFile
 // Description: Open a new file for playback.
+//
+// sFileName: Name of the file to open.
+// clsidPresenter: CLSID of a custom EVR presenter. 
+//
+// Note: Use GUID_NULL for the default presenter.
+// 
 //-----------------------------------------------------------------------------
 
-HRESULT DShowPlayer::OpenFile(const WCHAR* sFileName)
+HRESULT DShowPlayer::OpenFile(const WCHAR* sFileName, const CLSID& clsidPresenter)
 {
 	HRESULT hr = S_OK;
 
 	IBaseFilter *pSource = NULL;
 
 	// Create a new filter graph. (This also closes the old one, if any.)
-	hr = InitializeGraph();
+	CHECK_HR(hr = InitializeGraph());
 
+    m_clsidPresenter = clsidPresenter;
+	
 	// Add the source filter to the graph.
-	if (SUCCEEDED(hr))
-	{
-		hr = m_pGraph->AddSourceFilter(sFileName, NULL, &pSource);
-	}
+	CHECK_HR(hr = m_pGraph->AddSourceFilter(sFileName, NULL, &pSource));
 
 	// Try to render the streams.
-	if (SUCCEEDED(hr))
-	{
-		hr = RenderStreams(pSource);
-	}
+	CHECK_HR(hr = RenderStreams(pSource));
 
 	// Get the seeking capabilities.
-	if (SUCCEEDED(hr))
-	{
-		hr = m_pSeek->GetCapabilities(&m_seekCaps);
-	}
-
-	// Set the volume.
-	if (SUCCEEDED(hr))
-	{
-		hr = UpdateVolume();
-	}
+	CHECK_HR(hr = m_pSeek->GetCapabilities(&m_seekCaps));
 
 	// Update our state.
-	if (SUCCEEDED(hr))
-	{
-		m_state = STATE_STOPPED;
-	}
+	m_state = STATE_STOPPED;
 
-	SAFE_RELEASE(pSource);
-
+done:
+    SAFE_RELEASE(pSource);
 	return hr;
 }
-
-
 
 //-----------------------------------------------------------------------------
 // DShowPlayer::HandleGraphEvent
@@ -129,7 +131,7 @@ HRESULT DShowPlayer::OpenFile(const WCHAR* sFileName)
 // Caution: Do not tear down the graph from inside the callback.
 //-----------------------------------------------------------------------------
 
-HRESULT DShowPlayer::HandleGraphEvent(void (*pCB)(long, LONG_PTR, LONG_PTR))
+HRESULT DShowPlayer::HandleGraphEvent(GraphEventCallback *pCB)
 {
 	if (pCB == NULL)
 	{
@@ -146,13 +148,13 @@ HRESULT DShowPlayer::HandleGraphEvent(void (*pCB)(long, LONG_PTR, LONG_PTR))
 
 	HRESULT hr = S_OK;
 
-	// Get the events from the queue.
+    // Get the events from the queue.
 	while (SUCCEEDED(m_pEvent->GetEvent(&evCode, &param1, &param2, 0)))
 	{
-		// Invoke the callback.
-		pCB(evCode, param1, param2);
+        // Invoke the callback.
+		pCB->OnGraphEvent(evCode, param1, param2);
 
-		// Free the event data.
+        // Free the event data.
 		hr = m_pEvent->FreeEventParams(evCode, param1, param2);
 		if (FAILED(hr))
 		{
@@ -164,7 +166,7 @@ HRESULT DShowPlayer::HandleGraphEvent(void (*pCB)(long, LONG_PTR, LONG_PTR))
 }
 
 
-// state changes
+// State changes
 
 HRESULT DShowPlayer::Play()
 {
@@ -204,7 +206,6 @@ HRESULT DShowPlayer::Pause()
 	return hr;
 }
 
-
 HRESULT DShowPlayer::Stop()
 {
 	if (m_state != STATE_RUNNING && m_state != STATE_PAUSED)
@@ -224,31 +225,60 @@ HRESULT DShowPlayer::Stop()
 	return hr;
 }
 
-
-// EVR/VMR functionality
-
-
-BOOL DShowPlayer::HasVideo() const
+HRESULT DShowPlayer::Step(DWORD dwFrames)
 {
-	return (m_pVideo && m_pVideo->HasVideo());
+    if (m_pGraph == NULL)
+    {
+        return VFW_E_WRONG_STATE;
+    }
+
+    HRESULT hr = S_OK;
+    IVideoFrameStep *pStep = NULL;
+
+    CHECK_HR(hr = m_pGraph->QueryInterface(__uuidof(IVideoFrameStep), (void**)&pStep));
+
+    CHECK_HR(hr = pStep->Step(dwFrames, NULL));
+
+    // To step, the Filter Graph Manager first runs the graph. When
+    // the step is complete, it pauses the graph. For the application,
+    // we can just report our new state as paused.
+    m_state = STATE_PAUSED;
+
+done:
+    SAFE_RELEASE(pStep);
+    return hr;
 }
 
+
+// EVR functionality
 
 //-----------------------------------------------------------------------------
 // DShowPlayer::UpdateVideoWindow
 // Description: Sets the destination rectangle for the video.
+//
+// prc: Destination rectangle, as a subrect of the video window's client
+//      area. If NULL, the entire client area is used.
 //-----------------------------------------------------------------------------
 
 HRESULT DShowPlayer::UpdateVideoWindow(const LPRECT prc)
 {
-	HRESULT hr = S_OK;
-
-	if (m_pVideo)
+	if (!m_pDisplay)
 	{
-		hr = m_pVideo->UpdateVideoWindow(m_hwndVideo, prc);
+		return S_OK; // no-op
 	}
 
-	return hr;
+	if (prc)
+	{
+		return m_pDisplay->SetVideoPosition(NULL, prc);
+	}
+	else
+	{
+
+		RECT rc;
+		GetClientRect(m_hwndVideo, &rc);
+		return m_pDisplay->SetVideoPosition(NULL, &rc);
+	}
+    return S_OK;
 }
 
 //-----------------------------------------------------------------------------
@@ -258,40 +288,348 @@ HRESULT DShowPlayer::UpdateVideoWindow(const LPRECT prc)
 // Call this method when the application receives WM_PAINT.
 //-----------------------------------------------------------------------------
 
-HRESULT DShowPlayer::Repaint(HDC hdc)
+HRESULT DShowPlayer::RepaintVideo()
 {
-	HRESULT hr = S_OK;
-
-	if (m_pVideo)
+	if (m_pDisplay)
 	{
-		hr = m_pVideo->Repaint(m_hwndVideo, hdc);
+		return m_pDisplay->RepaintVideo();
 	}
+	else
+	{
+		return S_OK;
+	}
+}
 
-	return hr;
+//-----------------------------------------------------------------------------
+// DShowPlayer::EnableStream
+// Description: Enable or disable a stream on the EVR.
+//-----------------------------------------------------------------------------
+
+HRESULT DShowPlayer::EnableStream(DWORD iPin, BOOL bEnable)
+{
+    if (m_pEVR == NULL)
+    {
+        return MF_E_INVALIDREQUEST;
+    }
+
+    HRESULT hr = S_OK;
+
+    IPin *pPin = NULL;
+    IEVRVideoStreamControl *pStreamControl = NULL;
+
+    CHECK_HR(hr = FindPinByIndex(m_pEVR, PINDIR_INPUT, (UINT)iPin, &pPin));
+    CHECK_HR(hr = pPin->QueryInterface(__uuidof(IEVRVideoStreamControl), (void**)&pStreamControl));
+    CHECK_HR(hr = pStreamControl->SetStreamActiveState(bEnable));
+
+done:
+    SAFE_RELEASE(pPin);
+    SAFE_RELEASE(pStreamControl);
+    return hr;
 }
 
 
+// Video Mixer functionality
+
 //-----------------------------------------------------------------------------
-// DShowPlayer::DisplayModeChanged
-// Description: Notifies the VMR that the display mode changed.
+// SetScale
+// Description: Resizes the substream image.
 //
-// Call this method when the application receives WM_DISPLAYCHANGE.
+// fScale: Size of the substream image as a percentage [0.0 - 1.0].
 //-----------------------------------------------------------------------------
 
-HRESULT DShowPlayer::DisplayModeChanged()
+HRESULT DShowPlayer::SetScale(float fScale)
 {
-	HRESULT hr = S_OK;
+    if (fScale < 0 || fScale > 1.0)
+    {
+        return E_INVALIDARG;
+    }
 
-	if (m_pVideo)
-	{
-		hr = m_pVideo->DisplayModeChanged();
-	}
+    if (fScale == m_fScale)
+    {
+        return S_OK; // no-op
+    }
 
-	return hr;
+    if (m_pMixer == NULL)
+    {
+        return MF_E_INVALIDREQUEST;
+    }
+
+    HRESULT hr = S_OK;
+
+    // Get the current position of the substream rectangle.
+    MFVideoNormalizedRect rect;
+    ZeroMemory(&rect, sizeof(rect));
+
+    CHECK_HR(hr = m_pMixer->GetStreamOutputRect(1, &rect));
+
+    // When this method is called, the substream might be positioned anywhere 
+    // within the composition rectangle. To resize it, first we scale the 
+    // right/bottom edges up to the maximum, and then scale the left/top edges.
+    rect.right = min(rect.left + fScale, 1.0f);
+    rect.bottom = min(rect.top + fScale, 1.0f);
+
+    rect.left -= max(fScale - (rect.right - rect.left), 0.0f); 
+    rect.top -= max(fScale - (rect.bottom - rect.top), 0.0f);
+
+    // Set the new position.
+    CHECK_HR(hr = m_pMixer->SetStreamOutputRect(1, &rect));
+
+    m_fScale = fScale;
+
+done:
+    return hr;
 }
+
+
+//-----------------------------------------------------------------------------
+// HitTest
+// Description: Test whether a window coordinate falls within the boundaries
+// of the substream rectangle.
+//
+// Returns S_OK if there was a hit, or S_FALSE otherwise.
+//
+// pt: Window coordinates, relative to the video window's client area.
+//
+// Note: 
+// The window coordinates can be negative (ie, they can fall outside the client 
+// area). If there is no substream, the method returns S_FALSE.
+//
+//-----------------------------------------------------------------------------
+
+HRESULT DShowPlayer::HitTest(const POINT& pt)
+{
+    if (m_pMapper == NULL)
+    {
+        return MF_E_INVALIDREQUEST;
+    }
+
+    HRESULT hr = S_OK;
+    BOOL bHit = FALSE;
+
+    float x = -1, y = -1;
+
+    // Normalize the coordinates (ie, calculate them as a percentage of
+    // the video window's entire client area).
+    RECT rc;
+    GetClientRect(m_hwndVideo, &rc);
+
+    float x1 = (float)pt.x / rc.right;
+    float y1 = (float)pt.y / rc.bottom;
+
+    // Map these coordinates into the coordinate space of the substream.
+    hr = m_pMapper->MapOutputCoordinateToInputStream(
+        x1, y1, // Output coordinates
+        0,      // Output stream (the mixer only has one)
+        1,      // Input stream (1 = substream)
+        &x, &y  // Receives the normalized input coordinates.
+        );
+
+    // If the mapped coordinates fall within [0-1], it's a hit.
+    if (SUCCEEDED(hr))
+    {
+        bHit = ( (x >= 0) && (x <= 1) && (y >= 0) && (y <= 1) );
+    }
+
+    if (bHit)
+    {
+        // Store the hit point.
+        // We adjust the hit point by the substream scaling factor, so that the 
+        // hit point is now scaled to the reference stream. 
+
+        // Example: 
+        // - The hit point is (0.5,0.5), the center of the image.
+        // - The scaling factor is 0.5, so the substream image is 50% the size
+        //   of the reference stream.
+        // The adjusted hit point is (0.25,0.25) FROM the origin of the substream 
+        // rectangle but IN units of the reference stream. See DShowPlayer::Track 
+        // for where this is used.
+
+        m_ptHitTrack = PointF(x * m_fScale, y * m_fScale);
+    }
+
+    return bHit ? S_OK : S_FALSE;
+}
+
+//-----------------------------------------------------------------------------
+// SetHilite
+// Description: Applies an alpha-blended bitmap to the substream rectangle.
+// 
+// To remove the bitmap, call EndTrack().
+//
+// Notes: The client app calls this method if the user clicks on the video 
+// window and HitTest() returns S_OK.
+//-----------------------------------------------------------------------------
+
+HRESULT DShowPlayer::SetHilite(HBITMAP hBitmap, float fAlpha)
+{
+    if (m_pBitmap == NULL || m_pMixer == NULL)
+    {
+        return MF_E_INVALIDREQUEST;
+    }
+
+    HRESULT hr = S_OK;
+    HDC hdc = NULL;
+    HDC hdcBmp = NULL;
+    HBITMAP hOld = NULL;
+
+    // Get the current position of the substream rectangle.
+    MFVideoNormalizedRect nrcDest;
+    ZeroMemory(&nrcDest, sizeof(nrcDest));
+
+    CHECK_HR(hr = m_pMixer->GetStreamOutputRect(1, &nrcDest));
+
+    // Get the device context for the video window.
+    hdc = GetDC(m_hwndVideo);
+
+    // Create a compatible DC and select the bitmap into the DC>
+    hdcBmp = CreateCompatibleDC(hdc);
+    hOld = (HBITMAP)SelectObject(hdcBmp, hBitmap);
+
+    // Fill in the blending parameters.
+    MFVideoAlphaBitmap bmpInfo;
+    ZeroMemory(&bmpInfo, sizeof(bmpInfo));
+    bmpInfo.GetBitmapFromDC = TRUE; // Use a bitmap DC (not a Direct3D surface).
+    bmpInfo.bitmap.hdc = hdcBmp;
+    bmpInfo.params.dwFlags = MFVideoAlphaBitmap_Alpha | MFVideoAlphaBitmap_DestRect;
+    bmpInfo.params.fAlpha = fAlpha;
+    bmpInfo.params.nrcDest = nrcDest;
+
+    // Get the bitmap dimensions.
+    BITMAP bm;
+    GetObject(hBitmap, sizeof(BITMAP), &bm);
+
+    // Set the source rectangle equal to the entire bitmap.
+    SetRect(&bmpInfo.params.rcSrc, 0, 0, bm.bmWidth, bm.bmHeight);
+
+    // Set the bitmap.
+    CHECK_HR(hr = m_pBitmap->SetAlphaBitmap(&bmpInfo));
+
+done:
+    if (hdcBmp != NULL)
+    {
+        SelectObject(hdcBmp, hOld);
+        DeleteDC(hdcBmp);
+    }
+    if (hdc != NULL)
+    {
+        ReleaseDC(m_hwndVideo, hdc);
+    }
+
+    return hr;
+}
+
+
+//-----------------------------------------------------------------------------
+// Track
+// Description: Moves the substream rectangle to a new position.
+//
+// pt: Specifies the mouse position, relative to the client area of the video
+//     window. The actual move position is offset by the original hit point,
+//     as determined in HitTest().
+//
+// Before calling this method, the client app must call HitTest() to find 
+// the original hit point. If HitTest() returns S_FALSE, do not call Track().
+//
+//-----------------------------------------------------------------------------
+
+HRESULT DShowPlayer::Track(const POINT& pt)
+{
+    if (m_pBitmap == NULL || m_pMixer == NULL || m_pMapper == NULL)
+    {
+        return MF_E_INVALIDREQUEST;
+    }
+
+    HRESULT hr = S_OK;
+
+    RECT rc;
+    GetClientRect(m_hwndVideo, &rc);
+
+    // x, y: Mouse coordinates, normalized relative to the composition rectangle.
+    float x = (float)pt.x / rc.right;
+    float y = (float)pt.y / rc.bottom;
+
+    // Map the mouse coordinates to the reference stream.
+    CHECK_HR(hr = m_pMapper->MapOutputCoordinateToInputStream(
+        x, y,       // Output coordinates
+        0,          // Output stream (the mixer only has one)
+        0,          // Input stream (0 = ref stream)
+        &x, &y      // Receives the normalized input coordinates.
+        ));
+
+    // Offset by the original hit point.
+    x -= m_ptHitTrack.x;
+    y -= m_ptHitTrack.y;
+
+    float max_offset = 1.0f - m_fScale; // Maximum left and top positions for the substream.
+
+    MFVideoNormalizedRect nrcDest;
+
+    if (x < 0)
+    {
+        nrcDest.left = 0;
+        nrcDest.right = m_fScale;
+    }
+    else if (x > max_offset)
+    {
+        nrcDest.right = 1;
+        nrcDest.left = max_offset;
+    }
+    else
+    {
+        nrcDest.left = x;
+        nrcDest.right = x + m_fScale;
+    }
+
+    if (y < 0)
+    {
+        nrcDest.top = 0;
+        nrcDest.bottom = m_fScale;
+    }
+    else if (y > max_offset)
+    {
+        nrcDest.bottom = 1;
+        nrcDest.top = max_offset;
+    }
+    else
+    {
+        nrcDest.top = y;
+        nrcDest.bottom = y + m_fScale;
+    }
+
+    // Set the new position.
+    CHECK_HR(hr = m_pMixer->SetStreamOutputRect(1, &nrcDest));
+
+    // Move the highlight bitmap also.
+    MFVideoAlphaBitmapParams params;
+    ZeroMemory(&params, sizeof(params));
+
+    params.dwFlags = MFVideoAlphaBitmap_DestRect;
+    params.nrcDest = nrcDest;
+
+    CHECK_HR(hr = m_pBitmap->UpdateAlphaBitmapParameters(&params));
+
+done:
+    return hr;
+}
+
+//-----------------------------------------------------------------------------
+// EndTrack
+// Description: Removes the alpha-blended bitmap (see SetHilite).
+//-----------------------------------------------------------------------------
+
+HRESULT DShowPlayer::EndTrack()
+{
+    HRESULT hr = S_OK;
+    if (m_pBitmap)
+    {
+        hr = m_pBitmap->ClearAlphaBitmap();
+    }
+    return hr;
+}
+
+
 
 // Seeking
-
 
 //-----------------------------------------------------------------------------
 // DShowPlayer::CanSeek
@@ -337,18 +675,25 @@ HRESULT DShowPlayer::SetPosition(REFERENCE_TIME pos)
 }
 
 //-----------------------------------------------------------------------------
-// DShowPlayer::GetDuration
-// Description: Gets the duration of the current file.
+// DShowPlayer::GetStopTime
+// Description: Gets the stop time(or duration) of the current file.
 //-----------------------------------------------------------------------------
 
-HRESULT DShowPlayer::GetDuration(LONGLONG *pDuration)
+HRESULT DShowPlayer::GetStopTime(LONGLONG *pDuration)
 {
 	if (m_pSeek == NULL)
 	{
 		return E_UNEXPECTED;
 	}
 
-	return m_pSeek->GetDuration(pDuration);
+    HRESULT hr = m_pSeek->GetStopPosition(pDuration);
+
+    // If we cannot get the stop time, try to get the duration.
+    if (FAILED(hr))
+    {
+	    hr = m_pSeek->GetDuration(pDuration);
+    }
+    return hr;
 }
 
 //-----------------------------------------------------------------------------
@@ -367,62 +712,8 @@ HRESULT DShowPlayer::GetCurrentPosition(LONGLONG *pTimeNow)
 }
 
 
-// Audio
-
-//-----------------------------------------------------------------------------
-// DShowPlayer::Mute
-// Description: Mutes or unmutes the audio.
-//-----------------------------------------------------------------------------
-
-HRESULT	DShowPlayer::Mute(BOOL bMute)
-{
-	m_bMute = bMute;
-	return UpdateVolume();
-}
-
-//-----------------------------------------------------------------------------
-// DShowPlayer::SetVolume
-// Description: Sets the volume. 
-//-----------------------------------------------------------------------------
-
-HRESULT	DShowPlayer::SetVolume(long lVolume)
-{
-	m_lVolume = lVolume;
-	return UpdateVolume();
-}
-
-
-//-----------------------------------------------------------------------------
-// DShowPlayer::UpdateVolume
-// Description: Update the volume after a call to Mute() or SetVolume().
-//-----------------------------------------------------------------------------
-
-HRESULT DShowPlayer::UpdateVolume()
-{
-	HRESULT hr = S_OK;
-
-	if (m_bAudioStream && m_pAudio)
-	{
-		// If the audio is muted, set the minimum volume. 
-		if (m_bMute)
-		{
-			hr = m_pAudio->put_Volume(MIN_VOLUME);
-		}
-		else
-		{
-			// Restore previous volume setting
-			hr = m_pAudio->put_Volume(m_lVolume);
-		}
-	}
-
-	return hr;
-}
-
-
-
 
 // Graph building
-
 
 //-----------------------------------------------------------------------------
 // DShowPlayer::InitializeGraph
@@ -436,42 +727,26 @@ HRESULT DShowPlayer::InitializeGraph()
 	TearDownGraph();
 
 	// Create the Filter Graph Manager.
-	hr = CoCreateInstance(
-		CLSID_FilterGraph,
-		NULL,
+	CHECK_HR(hr = CoCreateInstance(
+		CLSID_FilterGraph, 
+		NULL, 
 		CLSCTX_INPROC_SERVER,
 		IID_IGraphBuilder,
 		(void**)&m_pGraph
-	);
+		));
 
-	// Query for graph interfaces.
-	if (SUCCEEDED(hr))
-	{
-		hr = m_pGraph->QueryInterface(IID_IMediaControl, (void**)&m_pControl);
-	}
+	// Query for graph interfaces. (These interfaces are exposed by the graph
+    // manager regardless of which filters are in the graph.)
+	CHECK_HR(hr = m_pGraph->QueryInterface(IID_IMediaControl, (void**)&m_pControl));
 
-	if (SUCCEEDED(hr))
-	{
-		hr = m_pGraph->QueryInterface(IID_IMediaEventEx, (void**)&m_pEvent);
-	}
+	CHECK_HR(hr = m_pGraph->QueryInterface(IID_IMediaEventEx, (void**)&m_pEvent));
 
-	if (SUCCEEDED(hr))
-	{
-		hr = m_pGraph->QueryInterface(IID_IMediaSeeking, (void**)&m_pSeek);
-	}
-
-	if (SUCCEEDED(hr))
-	{
-		hr = m_pGraph->QueryInterface(IID_IBasicAudio, (void**)&m_pAudio);
-	}
-
+	CHECK_HR(hr = m_pGraph->QueryInterface(IID_IMediaSeeking, (void**)&m_pSeek));
 
 	// Set up event notification.
-	if (SUCCEEDED(hr))
-	{
-		hr = m_pEvent->SetNotifyWindow((OAHWND)m_hwndEvent, m_EventMsg, NULL);
-	}
+	CHECK_HR(hr = m_pEvent->SetNotifyWindow((OAHWND)m_hwndEvent, m_EventMsg, NULL));
 
+done:
 	return hr;
 }
 
@@ -488,68 +763,24 @@ void DShowPlayer::TearDownGraph()
 		m_pEvent->SetNotifyWindow((OAHWND)NULL, NULL, NULL);
 	}
 
+    if (m_pControl)
+    {
+        m_pControl->Stop();
+    }
+
+	SAFE_RELEASE(m_pDisplay);
+    SAFE_RELEASE(m_pMixer);
+    SAFE_RELEASE(m_pBitmap);
+    SAFE_RELEASE(m_pMapper);
+    SAFE_RELEASE(m_pEVR);
 	SAFE_RELEASE(m_pGraph);
 	SAFE_RELEASE(m_pControl);
 	SAFE_RELEASE(m_pEvent);
 	SAFE_RELEASE(m_pSeek);
-	SAFE_RELEASE(m_pAudio);
-
-	SAFE_DELETE(m_pVideo);
 
 	m_state = STATE_CLOSED;
 	m_seekCaps = 0;
-
-	m_bAudioStream = FALSE;
 }
-
-
-HRESULT DShowPlayer::CreateVideoRenderer()
-{
-	HRESULT hr = E_FAIL;
-
-	enum { Try_EVR, Try_VMR9, Try_VMR7 };
-
-	for (DWORD i = Try_EVR; i <= Try_VMR7; i++)
-	{
-		switch (i)
-		{
-		case Try_EVR:
-			m_pVideo = new EVR();
-			break;
-			/*
-		case Try_VMR9:
-			m_pVideo = new VMR9();
-			break;
-
-		case Try_VMR7:
-			m_pVideo = new VMR7();
-			break;
-			*/
-		}
-
-		if (m_pVideo == NULL)
-		{
-			hr = E_OUTOFMEMORY;
-			break;
-		}
-
-		hr = m_pVideo->AddToGraph(m_pGraph, m_hwndVideo);
-		if (SUCCEEDED(hr))
-		{
-			break;
-		}
-
-		SAFE_DELETE(m_pVideo);
-	}
-
-	if (FAILED(hr))
-	{
-		SAFE_DELETE(m_pVideo);
-	}
-	return hr;
-}
-
-
 
 //-----------------------------------------------------------------------------
 // DShowPlayer::RenderStreams
@@ -560,90 +791,136 @@ HRESULT	DShowPlayer::RenderStreams(IBaseFilter *pSource)
 {
 	HRESULT hr = S_OK;
 
-	BOOL bRenderedAnyPin = FALSE;
+	BOOL bRenderedAudio = FALSE;
+    BOOL bRenderedVideo = FALSE;
+	BOOL bRemoved = FALSE;
 
-	IFilterGraph2 *pGraph2 = NULL;
+    EVRSetupInfo setupInfo;
+    ZeroMemory(&setupInfo, sizeof(setupInfo));
+
 	IEnumPins *pEnum = NULL;
+	IBaseFilter *pEVR = NULL;
 	IBaseFilter *pAudioRenderer = NULL;
+    IBaseFilter *pSplitter = NULL;
+	IPin *pPin = NULL;
 
-	hr = m_pGraph->QueryInterface(IID_IFilterGraph2, (void**)&pGraph2);
+	// Add the EVR to the graph.
+    CHECK_HR(hr = AddFilterByCLSID(m_pGraph, CLSID_EnhancedVideoRenderer, &pEVR, L"EVR"));
 
-	// Add the video renderer to the graph
-	if (SUCCEEDED(hr))
-	{
-		hr = CreateVideoRenderer();
-	}
+    // Configure the EVR with 1 input stream.
+    setupInfo.hwndVideo = m_hwndVideo;
+    setupInfo.dwStreams = 1;
+    setupInfo.clsidPresenter = m_clsidPresenter;
+    setupInfo.clsidMixer = GUID_NULL;
+
+    CHECK_HR(hr = InitializeEVR(pEVR, setupInfo, &m_pDisplay));
 
 	// Add the DSound Renderer to the graph.
-	if (SUCCEEDED(hr))
-	{
-		hr = AddFilterByCLSID(m_pGraph, CLSID_DSoundRender, &pAudioRenderer, L"Audio Renderer");
+	CHECK_HR(hr = AddFilterByCLSID(m_pGraph, CLSID_DSoundRender, &pAudioRenderer, L"Audio Renderer"));
+
+    // Enumerate the pins on the source filter.
+	CHECK_HR(hr = pSource->EnumPins(&pEnum));
+
+	// Loop through all the pins.
+	while (S_OK == pEnum->Next(1, &pPin, NULL))
+	{			
+		HRESULT hr2 = E_FAIL;
+        
+        if (!bRenderedVideo)
+        {
+    		// Try connecting this pin to the EVR.
+            hr2 = ConnectFilters(m_pGraph, pSource, pEVR);
+		    if (SUCCEEDED(hr2))
+		    {
+			    bRenderedVideo = TRUE;
+		    }
+        }
+
+        if (FAILED(hr2) && !bRenderedAudio)
+        {
+            // Try connecting the pin to the DSound Renderer
+            hr2 = ConnectFilters(m_pGraph, pSource, pAudioRenderer);
+
+		    if (SUCCEEDED(hr2))
+		    {
+			    bRenderedAudio = TRUE;
+		    }
+        }
+
+        SAFE_RELEASE(pPin);
 	}
 
-	// Enumerate the pins on the source filter.
-	if (SUCCEEDED(hr))
-	{
-		hr = pSource->EnumPins(&pEnum);
-	}
+    // If nothing connected, then we have failed.
+    if (!bRenderedAudio && !bRenderedVideo)
+    {
+        CHECK_HR(hr = VFW_E_CANNOT_RENDER);
+    }
 
-	if (SUCCEEDED(hr))
-	{
-		// Loop through all the pins
-		IPin *pPin = NULL;
+    // If one did not connect, then possibly the source is connected to a splitter
+    // and we need to connect the splitter. 
+    if (!bRenderedAudio)
+    {
+        HRESULT hr2 = S_OK;
 
-		while (S_OK == pEnum->Next(1, &pPin, NULL))
-		{
-			// Try to render this pin. 
-			// It's OK if we fail some pins, if at least one pin renders.
-			HRESULT hr2 = pGraph2->RenderEx(pPin, AM_RENDEREX_RENDERTOEXISTINGRENDERERS, NULL);
+        hr2 = GetNextFilter(pSource, DOWNSTREAM, &pSplitter);
 
-			pPin->Release();
+        if (SUCCEEDED(hr2))
+        {
+            hr2 = ConnectFilters(m_pGraph, pSplitter, pAudioRenderer);
+        }
+        if (SUCCEEDED(hr2))
+        {
+            bRenderedAudio = TRUE;
+        }
+    }
 
-			if (SUCCEEDED(hr2))
-			{
-				bRenderedAnyPin = TRUE;
-			}
-		}
-	}
+    if (!bRenderedVideo)
+    {
+        HRESULT hr2 = S_OK;
+
+        hr2 = GetNextFilter(pSource, DOWNSTREAM, &pSplitter);
+        if (SUCCEEDED(hr2))
+        {
+            hr2 = ConnectFilters(m_pGraph, pSplitter, pEVR);
+        }
+        if (SUCCEEDED(hr2))
+        {
+	        bRenderedVideo = TRUE;
+        }
+    }
 
 
 	// Remove un-used renderers.
 
-	// Try to remove the VMR.
-	if (SUCCEEDED(hr))
-	{
-		hr = m_pVideo->FinalizeGraph(m_pGraph);
+    if (!bRenderedVideo)
+    {
+    	CHECK_HR(hr = RemoveUnconnectedRenderer(m_pGraph, pEVR, &bRemoved));
+        assert(bRemoved);
+	    // If we removed the EVR, then we also need to release our 
+	    // pointer to the EVR display interfaace
+		SAFE_RELEASE(m_pDisplay);
 	}
+    else
+    {
+        // EVR is still in the graph. Cache the interface pointer.
+        assert(pEVR != NULL);
+        m_pEVR = pEVR;
+        m_pEVR->AddRef();
+    }
 
-	// Try to remove the audio renderer.
-	if (SUCCEEDED(hr))
-	{
-		BOOL bRemoved = FALSE;
-		hr = RemoveUnconnectedRenderer(m_pGraph, pAudioRenderer, &bRemoved);
+    if (!bRenderedAudio)
+    {
+	    bRemoved = FALSE;
+	    CHECK_HR(hr = RemoveUnconnectedRenderer(m_pGraph, pAudioRenderer, &bRemoved));
+        assert(bRemoved);
+    }
 
-		if (bRemoved)
-		{
-			m_bAudioStream = FALSE;
-		}
-		else
-		{
-			m_bAudioStream = TRUE;
-		}
-	}
-
+done:
 	SAFE_RELEASE(pEnum);
+	SAFE_RELEASE(pEVR);
 	SAFE_RELEASE(pAudioRenderer);
-	SAFE_RELEASE(pGraph2);
-
-	// If we succeeded to this point, make sure we rendered at least one 
-	// stream.
-	if (SUCCEEDED(hr))
-	{
-		if (!bRenderedAnyPin)
-		{
-			hr = VFW_E_CANNOT_RENDER;
-		}
-	}
+    SAFE_RELEASE(pSplitter);
+    SAFE_RELEASE(pPin);
 
 	return hr;
 }
@@ -683,3 +960,94 @@ HRESULT RemoveUnconnectedRenderer(IGraphBuilder *pGraph, IBaseFilter *pRenderer,
 
 	return hr;
 }
+
+
+//-----------------------------------------------------------------------------
+// InitializeEVR
+// Description: Configures the EVR filter.
+//
+// pEVR:      Pointer to the EVR.
+// info:      Set-up parameters. This structure contains the following items:
+//      hwnd:           Handle to the video window.
+//      dwStreams:      Number of streams to configure.
+//      clsidPresenter: CLSID of a custom presenter, or GUID_NULL.
+//      clsidMixer:     CLSID of a custom mixer, or GUID_NULL.
+// ppDisplay: Receives a pointer to the IMFVideoDisplayControl interface.
+//-----------------------------------------------------------------------------
+
+HRESULT InitializeEVR(IBaseFilter *pEVR, const EVRSetupInfo& info, IMFVideoDisplayControl **ppDisplay)
+{
+    HRESULT hr = S_OK;
+    RECT rcClient;
+
+    IMFVideoRenderer *pRenderer = NULL;
+    IMFVideoDisplayControl *pDisplay = NULL;
+    IEVRFilterConfig *pConfig = NULL;
+    IMFVideoPresenter *pPresenter = NULL;
+    IMFTransform *pMixer = NULL;
+
+    // Before doing anything else, set any custom presenter or mixer.
+
+    // Presenter?
+    if (info.clsidPresenter != GUID_NULL)
+    {
+        CHECK_HR(hr = CoCreateInstance(
+            info.clsidPresenter, 
+            NULL, 
+            CLSCTX_INPROC_SERVER,
+            __uuidof(IMFVideoPresenter),
+            (void**)&pPresenter
+            ));
+    }
+
+    // Mixer?
+    if (info.clsidMixer != GUID_NULL)
+    {
+        CHECK_HR(hr = CoCreateInstance(
+            info.clsidMixer, 
+            NULL, 
+            CLSCTX_INPROC_SERVER,
+            __uuidof(IMFTransform),
+            (void**)&pMixer
+            ));
+    }
+
+    if (pPresenter || pMixer)
+    {
+        CHECK_HR(hr = pEVR->QueryInterface(__uuidof(IMFVideoRenderer), (void**)&pRenderer));
+
+        CHECK_HR(hr = pRenderer->InitializeRenderer(pMixer, pPresenter));
+    }
+
+    // Continue with the rest of the set-up.
+
+    // Set the video window.
+    CHECK_HR(hr = MFGetService(pEVR, MR_VIDEO_RENDER_SERVICE, IID_IMFVideoDisplayControl, (void**)&pDisplay));
+
+    // Set the number of streams.
+    CHECK_HR(hr = pDisplay->SetVideoWindow(info.hwndVideo));
+
+    if (info.dwStreams > 1)
+    {
+        CHECK_HR(hr = pEVR->QueryInterface(__uuidof(IEVRFilterConfig), (void**)&pConfig));
+        CHECK_HR(hr = pConfig->SetNumberOfStreams(info.dwStreams));
+    }
+
+    // Set the display position to the entire window.
+    GetClientRect(info.hwndVideo, &rcClient);
+    CHECK_HR(hr = pDisplay->SetVideoPosition(NULL, &rcClient));
+    
+	// Return the IMFVideoDisplayControl pointer to the caller.
+	*ppDisplay = pDisplay;
+	(*ppDisplay)->AddRef();
+
+done:
+    SAFE_RELEASE(pRenderer);
+	SAFE_RELEASE(pDisplay);
+    SAFE_RELEASE(pConfig);
+    SAFE_RELEASE(pPresenter);
+    SAFE_RELEASE(pMixer);
+	return hr; 
+} 
+
+

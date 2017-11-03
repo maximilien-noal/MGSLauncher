@@ -45,7 +45,6 @@
     FindConnectedPin
 	FindPinByCategory
 	FindPinByIndex
-    FindPinByMajorType
     FindPinByName
     FindPinInterface
     FindMatchingPin
@@ -362,7 +361,6 @@ struct MatchPinName
     }
 };
 
-
 // MatchPinDirectionAndConnection
 // Function object to match a pin by direction and connection
 
@@ -402,7 +400,7 @@ struct MatchPinDirectionAndConnection
 };
 
 
-// MatchPinConnection
+// MatchPinDirectionAndConnection
 // Function object to match a pin connection status
 
 struct MatchPinConnection
@@ -468,66 +466,6 @@ struct MatchPinDirectionAndCategory
 };
 
 
-struct MatchPinMediaType
-{
-    GUID            m_majorType;
-    MatchPinDirectionAndConnection  m_match1;
-
-    MatchPinMediaType(REFGUID majorType, PIN_DIRECTION dir, BOOL bShouldBeConnected)
-        : m_majorType(majorType), m_match1(dir, bShouldBeConnected)
-    {
-    }
-
-    HRESULT operator()(IPin *pPin, BOOL *pResult)
-    {
-        assert(pResult != NULL);
-
-        HRESULT hr = S_OK;
-        BOOL bMatch = FALSE;
-
-        // First try to match on direction and connection status.
-        hr = m_match1(pPin, &bMatch);
-
-        // Next, try to match media types.
-        if (SUCCEEDED(hr) && bMatch)
-        {
-            // For a connected pin, try to match on the
-            // media type for the pin connection. Otherwise,
-            // try to match on the preferred media type.
-
-            const BOOL bConnected = m_match1.m_bShouldBeConnected;
-
-            if (bConnected)
-            {
-                AM_MEDIA_TYPE mt = { 0 };
-
-                hr = pPin->ConnectionMediaType(&mt);
-
-                if (SUCCEEDED(hr))
-                {
-                    bMatch = (mt.majortype == m_majorType);
-                    _FreeMediaType(mt);
-                }
-            }
-            else
-            {
-                hr = GetPinMediaType(pPin, m_majorType, GUID_NULL, GUID_NULL, NULL);
-
-                if (hr == VFW_E_NOT_FOUND)
-                {
-                    bMatch = FALSE;
-                    hr = S_OK;  // Not a failure case, just no match.
-                }
-            }
-        }
-
-        if (SUCCEEDED(hr))
-        {
-            *pResult = bMatch;
-        }
-        return hr;
-    }
-};
 
 /**************************************************************************
 
@@ -592,9 +530,9 @@ done:
     return (bFound ? S_OK : VFW_E_NOT_FOUND);
 }
 template <class Q>
-HRESULT FindPinInterface(IBaseFilter *pFilter, Q** pp)
+HRESULT FindPinInterface(IGraphBuilder *pGraph, Q** pp)
 {
-    return FindPinInterface(pFilter, __uuidof(Q), (void**)pp);
+    return FindPinInterface(pGraph, __uuidof(Q), (void**)pp);
 }
 
 
@@ -740,9 +678,9 @@ inline HRESULT FindConnectedPin(
 ///////////////////////////////////////////////////////////////////////
 
 inline HRESULT FindPinByCategory(
-	IBaseFilter *pFilter,   // Pointer to the filter.
-	REFGUID guidCategory,   // Category GUID
-	PIN_DIRECTION PinDir,   // Pin direction to match.
+	IBaseFilter *pFilter, 
+	REFGUID guidCategory,
+	PIN_DIRECTION PinDir,
 	IPin **ppPin
 	)
 {
@@ -780,43 +718,13 @@ inline HRESULT FindPinByName(IBaseFilter *pFilter, const WCHAR *wszName, IPin **
     return hr;
 }
 
-///////////////////////////////////////////////////////////////////////
-// Name: FindPinByMajorType
-// Desc: Find a pin that matches a major media type GUID.
-//
-// This function also matches my pin direction and pin connection
-// status. Hypothetically, this function could allow "don't care"
-// values for these. But in my experience, you generally know this
-// information for real-world uses (eg., if you are building the graph, 
-// versus finding pins on a completed graph).
-///////////////////////////////////////////////////////////////////////
-
-inline HRESULT FindPinByMajorType(
-    IBaseFilter     *pFilter,   // Pointer to the filter.
-    REFGUID         majorType,  // Major media type.
-    PIN_DIRECTION   PinDir,     // Pin direction to match.
-    BOOL            bConnected, // If TRUE, look for connected pins.
-                                // Otherwise, look for unconnected pins.
-    IPin            **ppPin     // Receives a pointer to the pin.
-    )
-{
-    if (!pFilter || !ppPin)
-    {
-        return E_POINTER;
-    }
-
-    HRESULT hr = S_OK;
-
-    hr = FindMatchingPin(pFilter, MatchPinMediaType(majorType, PinDir, bConnected), ppPin);
-
-    return hr;
-}
-
 /**********************************************************************
 
     Filter Query Functions  - Test filters for various conditions.
 
 **********************************************************************/
+
+
 
 ///////////////////////////////////////////////////////////////////////
 // Name: IsSourceFilter
@@ -1862,10 +1770,9 @@ inline HRESULT RemoveUnconnectedFilters(IGraphBuilder *pGraph)
 
     CHECK_HR(hr = pGraph->EnumFilters(&pEnum));
 
-    // Go through the list of filters in the graph.
     while (S_OK == pEnum->Next(1, &pFilter, NULL))
     {
-        // Find a connected pin on this filter.
+        // Find a connect pin on this filter.
         HRESULT hr2 = FindMatchingPin(pFilter, MatchPinConnection(TRUE), &pPin);
         if (SUCCEEDED(hr2))
         {
@@ -1875,9 +1782,6 @@ inline HRESULT RemoveUnconnectedFilters(IGraphBuilder *pGraph)
         }
         assert(pPin == NULL);
         CHECK_HR(hr = RemoveFilter(pGraph, pFilter));
-
-        // The previous call made the enumerator stale. 
-        pEnum->Reset(); 
     }
 
 done:
@@ -2354,7 +2258,7 @@ inline HRESULT LetterBoxRect(const SIZE &aspectRatio, const RECT &rcDest, RECT *
    // First try: Letterbox along the sides. ("pillarbox")
     width = MulDiv(DestHeight, SrcWidth, SrcHeight);
     height = DestHeight;
-    if (width > DestWidth)
+    if (width <= DestWidth)
     {
         // Letterbox along the top and bottom.
         width = DestWidth;

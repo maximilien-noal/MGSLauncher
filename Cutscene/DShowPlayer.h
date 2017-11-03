@@ -1,4 +1,3 @@
-#pragma once
 //////////////////////////////////////////////////////////////////////////
 // DShowPlayer.h: Implements DirectShow playback functionality.
 // 
@@ -13,24 +12,18 @@
 
 #pragma once
 
-// Windows Header Files:
-#include <windows.h>
-#include <strsafe.h>
 #include <dshow.h>
+#include "EVRPlayer.h"
 
-#ifndef SAFE_RELEASE
-#define SAFE_RELEASE(x) { if (x) { x->Release(); x = NULL; } }
-#endif
+struct PointF
+{
+    float   x;
+    float   y;
 
-#ifndef SAFE_DELETE
-#define SAFE_DELETE(x) { delete x; x = NULL; }
-#endif
+    PointF() : x(0), y(0) {}
+    PointF(float x, float y) : x(x), y(y) {}        
+};
 
-
-#include "video.h"
-
-const long MIN_VOLUME = -10000;
-const long MAX_VOLUME = 0;
 
 enum PlaybackState
 {
@@ -40,6 +33,8 @@ enum PlaybackState
 	STATE_CLOSED
 };
 
+// GraphEventCallback: 
+// Defines a callback for the application to handle filter graph events.
 struct GraphEventCallback
 {
 	virtual void OnGraphEvent(long eventCode, LONG_PTR param1, LONG_PTR param2) = 0;
@@ -57,40 +52,41 @@ public:
 
 	PlaybackState State() const { return m_state; }
 
-	HRESULT OpenFile(const WCHAR* sFileName);
-
+	HRESULT OpenFile(const WCHAR* sFileName, const CLSID& clsidPresenter = GUID_NULL);
+	
 	// Streaming
 	HRESULT Play();
 	HRESULT Pause();
 	HRESULT Stop();
+    HRESULT Step(DWORD dwFrames);
 
-	// VMR functionality
-	BOOL    HasVideo() const;
+	// Video functionality
+	BOOL    HasVideo() const { return m_pDisplay != NULL; }
 	HRESULT UpdateVideoWindow(const LPRECT prc);
-	HRESULT Repaint(HDC hdc);
-	HRESULT DisplayModeChanged();
+	HRESULT RepaintVideo();
+    HRESULT EnableStream(DWORD iPin, BOOL bEnable);
 
-	// events
-	HRESULT HandleGraphEvent(void(*pCB)(long, LONG_PTR, LONG_PTR));
+    // Subpicture stream
+    BOOL    HasSubstream() const { return m_pMixer != NULL; }
+    HRESULT SetScale(float fScale);
+    HRESULT HitTest(const POINT& pt);
+    HRESULT SetHilite(HBITMAP hBitmap, float fAlpha);
+    HRESULT Track(const POINT& pt);
+    HRESULT EndTrack();
 
-	// seeking
+	// Filter graph events
+	HRESULT HandleGraphEvent(GraphEventCallback *pCB);
+
+	// Seeking
 	BOOL	CanSeek() const;
 	HRESULT SetPosition(REFERENCE_TIME pos);
-	HRESULT GetDuration(LONGLONG *pDuration);
+	HRESULT GetStopTime(LONGLONG *pDuration);
 	HRESULT GetCurrentPosition(LONGLONG *pTimeNow);
-
-	// Audio
-	HRESULT	Mute(BOOL bMute);
-	BOOL	IsMuted() const { return m_bMute; }
-	HRESULT	SetVolume(long lVolume);
-	long	GetVolume() const { return m_lVolume; }
 
 private:
 	HRESULT InitializeGraph();
 	void	TearDownGraph();
-	HRESULT CreateVideoRenderer();
 	HRESULT	RenderStreams(IBaseFilter *pSource);
-	HRESULT UpdateVolume();
 
 	PlaybackState	m_state;
 
@@ -100,19 +96,23 @@ private:
 
 	DWORD			m_seekCaps;		// Caps bits for IMediaSeeking
 
-									// Audio
-	BOOL            m_bAudioStream; // Is there an audio stream?
-	long			m_lVolume;		// Current volume (unless muted)
-	BOOL			m_bMute;		// Volume muted?		
+    GUID            m_clsidPresenter;   // CLSID of a custom presenter.
 
+    // Substream
+    float           m_fScale;
+    PointF          m_ptHitTrack;
+
+    // Filter graph interfaces.
 	IGraphBuilder	*m_pGraph;
 	IMediaControl	*m_pControl;
 	IMediaEventEx	*m_pEvent;
 	IMediaSeeking	*m_pSeek;
-	IBasicAudio		*m_pAudio;
 
-	BaseVideoRenderer   *m_pVideo;
-
+    // EVR filter
+    IBaseFilter             *m_pEVR;
+    IMFVideoDisplayControl  *m_pDisplay;
+    IMFVideoMixerControl    *m_pMixer;
+    IMFVideoMixerBitmap     *m_pBitmap;
+    IMFVideoPositionMapper  *m_pMapper;
 };
 
-HRESULT RemoveUnconnectedRenderer(IGraphBuilder *pGraph, IBaseFilter *pRenderer, BOOL *pbRemoved);
