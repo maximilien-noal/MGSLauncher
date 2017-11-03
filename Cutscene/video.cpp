@@ -12,6 +12,9 @@
 #include "DShowPlayer.h"
 #include "common\dshowutil.h"
 #include <Mfidl.h>
+#define INITGUID
+#include <InitGuid.h>
+#include "..\evrpresenter\EVRPresenterUuid.h"
 
 HRESULT InitializeEVR(IBaseFilter *pEVR, HWND hwnd, IMFVideoDisplayControl ** ppWc);
 HRESULT InitWindowlessVMR9(IBaseFilter *pVMR, HWND hwnd, IVMRWindowlessControl9 ** ppWc);
@@ -374,7 +377,7 @@ HRESULT EVR::AddToGraph(IGraphBuilder *pGraph, HWND hwnd)
 
 	IBaseFilter *pEVR = NULL;
 
-	hr = AddFilterByCLSID(pGraph, CLSID_EnhancedVideoRenderer, &pEVR, L"EVR");
+	hr = AddFilterByCLSID(pGraph, CLSID_CustomEVRPresenter, &pEVR, L"EVR");
 
 	if (SUCCEEDED(hr))
 	{

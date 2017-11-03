@@ -516,7 +516,7 @@ HRESULT DShowPlayer::CreateVideoRenderer()
 		case Try_EVR:
 			m_pVideo = new EVR();
 			break;
-
+			/*
 		case Try_VMR9:
 			m_pVideo = new VMR9();
 			break;
@@ -524,6 +524,7 @@ HRESULT DShowPlayer::CreateVideoRenderer()
 		case Try_VMR7:
 			m_pVideo = new VMR7();
 			break;
+			*/
 		}
 
 		if (m_pVideo == NULL)
