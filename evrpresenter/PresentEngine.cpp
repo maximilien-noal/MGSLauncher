@@ -658,7 +658,7 @@ HRESULT D3DPresentEngine::GetSwapChainPresentParameters(IMFMediaType *pType, D3D
     pPP->BackBufferWidth = width;
     pPP->BackBufferHeight = height;
     pPP->Windowed = TRUE;
-    pPP->SwapEffect = D3DSWAPEFFECT_COPY;
+    pPP->SwapEffect = D3DSWAPEFFECT_OVERLAY;
     pPP->BackBufferFormat = (D3DFORMAT)d3dFormat;
     pPP->hDeviceWindow = m_hwnd;
     pPP->Flags = D3DPRESENTFLAG_VIDEO;
