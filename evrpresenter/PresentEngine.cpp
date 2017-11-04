@@ -476,8 +476,8 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
 
     pp.BackBufferWidth = 1;
     pp.BackBufferHeight = 1;
-    pp.Windowed = TRUE;
-    pp.SwapEffect = D3DSWAPEFFECT_OVERLAY; //was D3DSWAPEFFECT_COPY
+    pp.Windowed = FALSE;
+    pp.SwapEffect = D3DSWAPEFFECT_COPY;
     pp.BackBufferFormat = D3DFMT_UNKNOWN;
     pp.hDeviceWindow = hwnd;
     pp.Flags = D3DPRESENTFLAG_VIDEO;
@@ -509,7 +509,7 @@ HRESULT D3DPresentEngine::CreateD3DDevice()
         uAdapterID,
         D3DDEVTYPE_HAL,
         pp.hDeviceWindow,
-        vp | D3DCREATE_NOWINDOWCHANGES | D3DCREATE_MULTITHREADED | D3DCREATE_FPU_PRESERVE,
+        vp | D3DCREATE_MULTITHREADED | D3DCREATE_FPU_PRESERVE,
         &pp, 
         NULL,
         &pDevice
@@ -657,8 +657,8 @@ HRESULT D3DPresentEngine::GetSwapChainPresentParameters(IMFMediaType *pType, D3D
     ZeroMemory(pPP, sizeof(D3DPRESENT_PARAMETERS));
     pPP->BackBufferWidth = width;
     pPP->BackBufferHeight = height;
-    pPP->Windowed = TRUE;
-    pPP->SwapEffect = D3DSWAPEFFECT_OVERLAY;
+    pPP->Windowed = FALSE;
+    pPP->SwapEffect = D3DSWAPEFFECT_COPY;
     pPP->BackBufferFormat = (D3DFORMAT)d3dFormat;
     pPP->hDeviceWindow = m_hwnd;
     pPP->Flags = D3DPRESENTFLAG_VIDEO;
