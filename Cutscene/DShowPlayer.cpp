@@ -12,6 +12,7 @@
 #include "stdafx.h"
 #include "EVRPlayer.h"
 #include "common/dshowutil.h"
+#include <mfidl.h>
 
 struct EVRSetupInfo
 {
@@ -131,7 +132,7 @@ done:
 // Caution: Do not tear down the graph from inside the callback.
 //-----------------------------------------------------------------------------
 
-HRESULT DShowPlayer::HandleGraphEvent(GraphEventCallback *pCB)
+HRESULT DShowPlayer::HandleGraphEvent(void(*pCB)(long, LONG_PTR, LONG_PTR))
 {
 	if (pCB == NULL)
 	{
@@ -152,7 +153,7 @@ HRESULT DShowPlayer::HandleGraphEvent(GraphEventCallback *pCB)
 	while (SUCCEEDED(m_pEvent->GetEvent(&evCode, &param1, &param2, 0)))
 	{
         // Invoke the callback.
-		pCB->OnGraphEvent(evCode, param1, param2);
+		pCB(evCode, param1, param2);
 
         // Free the event data.
 		hr = m_pEvent->FreeEventParams(evCode, param1, param2);

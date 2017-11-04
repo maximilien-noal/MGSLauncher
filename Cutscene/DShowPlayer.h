@@ -33,13 +33,6 @@ enum PlaybackState
 	STATE_CLOSED
 };
 
-// GraphEventCallback: 
-// Defines a callback for the application to handle filter graph events.
-struct GraphEventCallback
-{
-	virtual void OnGraphEvent(long eventCode, LONG_PTR param1, LONG_PTR param2) = 0;
-};
-
 
 class DShowPlayer
 {
@@ -75,7 +68,7 @@ public:
     HRESULT EndTrack();
 
 	// Filter graph events
-	HRESULT HandleGraphEvent(GraphEventCallback *pCB);
+	HRESULT HandleGraphEvent(void(*pCB)(long, LONG_PTR, LONG_PTR));
 
 	// Seeking
 	BOOL	CanSeek() const;
